@@ -37,6 +37,9 @@ namespace humblenet {
 	// but since there's only ever one type of connection in any binary
 	// we opt for static dispatch instead
 	struct P2PSignalConnection;
+
+	// This method send the buffer to Signaling Server
+	// it's implemented in 'humblenet_p2p_signaling.cpp'
 	ha_bool sendP2PMessage(P2PSignalConnection *conn, const uint8_t *buff, size_t length) WARN_UNUSED_RESULT;
 
 	/*

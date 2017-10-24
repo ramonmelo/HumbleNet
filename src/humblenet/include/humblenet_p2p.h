@@ -20,7 +20,12 @@ typedef enum SendMode {
 * Is the peer-to-peer network supported on this platform.
 */
 HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_supported();
-	
+
+/*
+* Set if the system will use an external signaling system
+*/
+HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_use_external_signaling(ha_bool value);
+
 /*
 * Initialize the peer-to-peer library.
 */
@@ -30,7 +35,13 @@ HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_init(const char* server, cons
 * Is the peer-to-peer network supported on this platform.
 */
 HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_is_initialized();
-	
+
+/*
+* Set the current peer ID of this client
+* returns false if not worked
+*/
+HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_set_my_peer_id(PeerId id);
+
 /*
 * Get the current peer ID of this client
 * returns 0 if not yet connected

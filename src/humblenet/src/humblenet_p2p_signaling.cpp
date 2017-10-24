@@ -16,6 +16,7 @@
 
 
 static ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data);
+static ha_bool p2pExternalSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data);
 
 ha_bool humblenet_signaling_connect() {
 	using namespace humblenet;
@@ -45,28 +46,49 @@ ha_bool humblenet_signaling_connect() {
 }
 
 namespace humblenet {
+
+	ha_bool injectData(const uint8_t *buff, size_t length) {
+
+		return false;
+	}
+
 	ha_bool sendP2PMessage(P2PSignalConnection *conn, const uint8_t *buff, size_t length)
 	{
-		if( conn == NULL ) {
-			// this equates to the state where we never established / got disconnected
-			// from the peer server.
+		if (!humbleNetState.externalSignaling) {
+			if( conn == NULL ) {
+				// this equates to the state where we never established / got disconnected
+				// from the peer server.
 
-			return false;
-		}
+				return false;
+			}
 
-		assert(conn != NULL);
-		if (conn->wsi == NULL) {
-			// this really shouldn't happen but apparently it can
-			// if the game hasn't properly opened a signaling connection
-			return false;
-		}
+			assert(conn != NULL);
+			if (conn->wsi == NULL) {
+				// this really shouldn't happen but apparently it can
+				// if the game hasn't properly opened a signaling connection
+				return false;
+			}
 
-		{
-			HUMBLENET_UNGUARD();
+			{
+				HUMBLENET_UNGUARD();
 
-			int ret = internal_write_socket(conn->wsi, (const void*)buff, length );
+				int ret = internal_write_socket(conn->wsi, (const void*)buff, length );
 
-			return ret == length;
+				return ret == length;
+			}
+		} else {
+			// using external signaling server
+			// add messages to internal buffer
+
+			std::vector<uint8_t> inputData;
+			
+			inputData.insert(inputData.end()
+								, reinterpret_cast<const char *>(buff)
+								, reinterpret_cast<const char *>(buff) + length);
+			
+			parseMessage(inputData, p2pExternalSignalProcess, (void*) buff);
+
+			return true;
 		}
 	}
 
@@ -149,6 +171,8 @@ namespace humblenet {
 		pinfo = buff;
 #endif
 
+		LOG("\t\ton_connect \n");
+
 		uint8_t flags = 0;
 		if (humbleNetState.webRTCSupported) {
 			// No trickle ICE on native
@@ -192,6 +216,9 @@ namespace humblenet {
 							 , reinterpret_cast<const char *>(data)
 							 , reinterpret_cast<const char *>(data) + len);
 		ha_bool retval = parseMessage(conn->recvBuf, p2pSignalProcess, NULL);
+
+		LOG("\t\ton_data \n");
+
 		if (!retval) {
 			// error while parsing a message, close the connection
 			humbleNetState.p2pConn.reset();
@@ -270,6 +297,66 @@ namespace humblenet {
 
 		internal_register_protocol( humbleNetState.context, "humblepeer", &callbacks );
 	}
+}
+
+static ha_bool p2pExternalSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data)
+{
+	using namespace humblenet;
+	auto msgType = msg->message_type();
+
+	uint32_t peer = 0;
+
+	switch (msgType) {
+		case HumblePeer::MessageType::P2POffer:
+		{
+			auto p2p = reinterpret_cast<const HumblePeer::P2POffer*>(msg->message());
+			peer = p2p->peerId();
+
+			LOG("\nOffer to %d\n", (int) peer);
+
+			break;
+		}
+
+		case HumblePeer::MessageType::P2PAnswer:
+		{
+			auto p2p = reinterpret_cast<const HumblePeer::P2PAnswer*>(msg->message());
+			peer = p2p->peerId();
+
+			LOG("\nAnswer to %d\n", (int) peer);
+
+			break;
+		}
+		case HumblePeer::MessageType::P2PReject:
+		{
+			auto p2p = reinterpret_cast<const HumblePeer::P2PReject*>(msg->message());
+			peer = p2p->peerId();
+
+			LOG("\nReject to %d\n", (int) peer);
+
+			break;
+		}
+
+		case HumblePeer::MessageType::ICECandidate:
+		{
+			auto p2p = reinterpret_cast<const HumblePeer::ICECandidate*>(msg->message());
+			peer = p2p->peerId();
+
+			LOG("\nICE to %d\n", (int) peer);
+
+			break;
+		}
+		default: 
+		{
+			break;
+		}
+	}
+
+	if (peer != 0) {
+		std::pair<PeerId, uint8_t*> info = std::make_pair(peer, (uint8_t*) user_data);
+		humbleNetState.outputMsgs.push( info );
+	}
+
+	return true;
 }
 
 static ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data)

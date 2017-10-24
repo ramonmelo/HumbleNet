@@ -7,6 +7,8 @@
 #include "humblenet_p2p_signaling.h"
 
 #include <memory>
+#include <queue>
+#include <utility>
 
 // TODO: should have a way to disable this on release builds
 #define LOG printf
@@ -94,11 +96,17 @@ typedef struct HumbleNetState {
 
 	ha_bool webRTCSupported;
 
+	// External Signaling System
+	ha_bool externalSignaling;
+	std::queue< std::pair<PeerId, uint8_t*> > inputMsgs;
+	std::queue< std::pair<PeerId, uint8_t*> > outputMsgs;
+
 	internal_context_t *context;
 
 	HumbleNetState()
 	:  myPeerId(0)
 	, webRTCSupported(false)
+	, externalSignaling(false)
 	, context(NULL)
 	{
 	}

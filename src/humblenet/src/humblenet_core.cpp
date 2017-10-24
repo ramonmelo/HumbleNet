@@ -103,7 +103,7 @@ bool is_peer_blacklisted( PeerId peer_id ) {
  * Side effect: sets error to reason on failure
  */
 bool can_try_peer( PeerId peer_id ) {
-	if (!humbleNetState.p2pConn) {
+	if (!humbleNetState.p2pConn && !humbleNetState.externalSignaling) {
 		humblenet_set_error("Signaling connection not established");
 		// no signaling connection
 		return false;
