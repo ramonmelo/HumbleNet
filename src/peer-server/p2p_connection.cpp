@@ -24,6 +24,8 @@ namespace humblenet {
 		switch (msgType) {
 			case HumblePeer::MessageType::P2POffer:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::P2POffer\n\n");
+
 				auto p2p = reinterpret_cast<const HumblePeer::P2POffer*>(msg->message());
 				auto peer = p2p->peerId();
 
@@ -71,6 +73,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::P2PAnswer:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::P2PAnswer\n\n");
+
 				auto p2p = reinterpret_cast<const HumblePeer::P2PAnswer*>(msg->message());
 				auto peer = p2p->peerId();
 
@@ -109,6 +113,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::ICECandidate:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::ICECandidate\n\n");
+
 				auto p2p = reinterpret_cast<const HumblePeer::ICECandidate*>(msg->message());
 				auto peer = p2p->peerId();
 
@@ -131,6 +137,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::P2PReject:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::P2PReject\n\n");
+
 				auto p2p = reinterpret_cast<const HumblePeer::P2PReject*>(msg->message());
 				auto peer = p2p->peerId();
 
@@ -165,6 +173,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::HelloServer:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::HelloServer\n\n");
+
 				auto hello = reinterpret_cast<const HumblePeer::HelloServer*>(msg->message());
 
 				if (peerId != 0) {
@@ -231,6 +241,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::P2PRelayData:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::P2PRelayData\n\n");
+
 				auto relay = reinterpret_cast<const HumblePeer::P2PRelayData*>(msg->message());
 				auto peer = relay->peerId();
 				auto data = relay->data();
@@ -253,6 +265,8 @@ namespace humblenet {
 				// Alias processing
 			case HumblePeer::MessageType::AliasRegister:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::AliasRegister\n\n");
+
 				auto reg = reinterpret_cast<const HumblePeer::AliasRegister*>(msg->message());
 				auto alias = reg->alias();
 
@@ -273,6 +287,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::AliasUnregister:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::AliasUnregister\n\n");
+
 				auto unreg = reinterpret_cast<const HumblePeer::AliasUnregister*>(msg->message());
 				auto alias = unreg->alias();
 
@@ -299,6 +315,8 @@ namespace humblenet {
 
 			case HumblePeer::MessageType::AliasLookup:
 			{
+				LOG_INFO("SERVER: HumblePeer::MessageType::AliasLookup\n\n");
+
 				auto lookup = reinterpret_cast<const HumblePeer::AliasLookup*>(msg->message());
 				auto alias = lookup->alias();
 
