@@ -80,3 +80,29 @@ Compilation:
     3. `make humblenet_test_peer`: build the test peer found in `<HumberNetDir>/tests/test_peer.cpp`;
     4. `make peer-server`: will build the test server found in `<HumbleNetDir>/src/peer-server`;
 
+Compile to use with Unity 3D:
+-----------------------------
+
+1. Follow all above instructions, to be able to compile the rest of the library;
+2. Execute the following builds:
+    1. `make humblenet_cs` : in order to build the C# API bridge;
+    2. `make humblenet_unity_plugin` : to build the *standalone* version of the library;
+    3. `make humblenet_unity_editor` : to build the *in editor* version of the library.
+3. On your build folder should exists the following files (or similar, depending of your OS):
+    1. `humblenet.cs`
+    2. `humblenet.bundle`
+    3. `humblenet_unity_editor.bundle`
+4. Copy all files to your `Assets/Plugins` folder.
+
+Problems:
+---------
+
+- Compiling code for Unity (at least with bundle files), sometimes shows an error about '*file not found*'
+
+Related Docs:
+----------------
+
+- https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Connectivity
+- https://github.com/HumbleNet/HumbleNet/blob/master/README.md
+- https://hacks.mozilla.org/2017/06/introducing-humblenet-a-cross-platform-networking-library-that-works-in-the-browser/
+- https://news.ycombinator.com/item?id=14702048
