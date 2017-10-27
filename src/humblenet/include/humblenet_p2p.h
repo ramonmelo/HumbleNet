@@ -22,11 +22,6 @@ typedef enum SendMode {
 HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_supported();
 
 /*
-* Set if the system will use an external signaling system
-*/
-HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_use_external_signaling(ha_bool value);
-
-/*
 * Initialize the peer-to-peer library.
 */
 HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_init(const char* server, const char* client_token, const char* client_secret, const char* auth_token);
@@ -47,7 +42,7 @@ HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_set_my_peer_id(PeerId id);
 * returns 0 if not yet connected
 */
 HUMBLENET_API PeerId HUMBLENET_CALL humblenet_p2p_get_my_peer_id();
-	
+
 /*
 * Register an alias for this peer so it can be found by name
 */
@@ -69,10 +64,10 @@ HUMBLENET_API PeerId HUMBLENET_CALL humblenet_p2p_virtual_peer_for_alias(const c
 HUMBLENET_API int HUMBLENET_CALL humblenet_p2p_sendto(const void* message, uint32_t length, PeerId topeer, SendMode mode, uint8_t nChannel);
 
 /*
-* Test if a message is available on the specified channel. 
+* Test if a message is available on the specified channel.
 */
 HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_peek(uint32_t* length, uint8_t nChannel);
-	
+
 /*
 * Receive a message sent from a peer
 */
@@ -82,7 +77,7 @@ HUMBLENET_API int HUMBLENET_CALL humblenet_p2p_recvfrom(void* message, uint32_t 
 * Disconnect a peer
 */
 HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_disconnect(PeerId peer);
-	
+
 /*
 * Wait for an IO event to occur
 */
