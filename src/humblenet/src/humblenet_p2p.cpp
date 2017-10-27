@@ -21,15 +21,6 @@ ha_bool HUMBLENET_CALL humblenet_p2p_is_initialized() {
 }
 
 /*
-* Set if the system will use an external signaling system
-*/
-ha_bool HUMBLENET_CALL humblenet_p2p_use_external_signaling(ha_bool value) {
-	humbleNetState.externalSignaling = value;
-
-	return true;
-}
-
-/*
  * Initialize the peer-to-peer library.
  */
 ha_bool HUMBLENET_CALL humblenet_p2p_init(const char* server, const char* game_token, const char* game_secret, const char* auth_token) {
@@ -57,9 +48,7 @@ ha_bool HUMBLENET_CALL humblenet_p2p_init(const char* server, const char* game_t
 
 	internal_p2p_register_protocol();
 
-	if (!humbleNetState.externalSignaling) {
-		humblenet_signaling_connect();
-	}
+	humblenet_signaling_connect();
 
 	return 1;
 }

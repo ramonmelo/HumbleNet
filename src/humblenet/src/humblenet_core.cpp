@@ -88,7 +88,7 @@ bool is_peer_blacklisted( PeerId peer_id ) {
 	auto it = humbleNetState.peerBlacklist.find(peer_id);
 	if( it == humbleNetState.peerBlacklist.end() )
 		return false;
-	
+
 	if( it->second <= sys_milliseconds() ) {
 		humbleNetState.peerBlacklist.erase(it);
 		return true;
@@ -103,7 +103,7 @@ bool is_peer_blacklisted( PeerId peer_id ) {
  * Side effect: sets error to reason on failure
  */
 bool can_try_peer( PeerId peer_id ) {
-	if (!humbleNetState.p2pConn && !humbleNetState.externalSignaling) {
+	if (!humbleNetState.p2pConn) {
 		humblenet_set_error("Signaling connection not established");
 		// no signaling connection
 		return false;
@@ -125,7 +125,7 @@ bool can_try_peer( PeerId peer_id ) {
 		LOG("humblenet_connect_peer: peer blacklisted %u\n", peer_id);
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -147,7 +147,7 @@ void humblenet_connection_set_closed( Connection* conn ) {
 	if( conn->inOrOut == Incoming ) {
 		blacklist_peer( conn->otherPeer );
 	}
-	
+
 	conn->status = HUMBLENET_CONNECTION_CLOSED;
 
 	LOG("Marking connections closed: %u\n", conn->otherPeer );
@@ -347,7 +347,7 @@ int on_ice_candidate( internal_socket_t* s, const char* offer, void* user_data )
 	HUMBLENET_GUARD();
 
 	Connection* conn = reinterpret_cast<Connection*>(user_data);
-	
+
 	if( conn == NULL ) {
 		LOG("on_ice: Got socket w/o state?\n");
 		return -1;
@@ -486,7 +486,7 @@ int on_writable (internal_socket_t* s, void* user_data) {
 	HUMBLENET_GUARD();
 
 	auto it = humbleNetState.connections.find( s );
-	
+
 	if( it != humbleNetState.connections.end() ) {
 		// its not here anymore
 		return -1;

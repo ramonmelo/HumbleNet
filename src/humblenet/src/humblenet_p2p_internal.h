@@ -96,17 +96,11 @@ typedef struct HumbleNetState {
 
 	ha_bool webRTCSupported;
 
-	// External Signaling System
-	ha_bool externalSignaling;
-	std::queue< std::pair<PeerId, uint8_t*> > inputMsgs;
-	std::queue< std::pair<PeerId, uint8_t*> > outputMsgs;
-
 	internal_context_t *context;
 
 	HumbleNetState()
 	:  myPeerId(0)
 	, webRTCSupported(false)
-	, externalSignaling(false)
 	, context(NULL)
 	{
 	}
