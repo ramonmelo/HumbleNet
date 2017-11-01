@@ -2,6 +2,7 @@
 #define HUMBLENET_P2P_H
 
 #include "humblenet.h"
+#include "humblenet_p2p_signaling_provider.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,6 +16,8 @@ typedef enum SendMode {
 	SEND_RELIABLE_BUFFERED = 1
 } SendMode;
 
+
+HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(ISignalingProvider* provider);
 
 /*
 * Is the peer-to-peer network supported on this platform.

@@ -10,6 +10,7 @@
 #include <map>
 
 #include "humblepeer_generated.h"
+#include "humblenet_p2p_signaling_provider.h"
 
 #ifdef __GNUC__
 #define WARN_UNUSED_RESULT __attribute__ ((warn_unused_result))
@@ -36,11 +37,12 @@ namespace humblenet {
 	// we could use C++ classes and inheritance
 	// but since there's only ever one type of connection in any binary
 	// we opt for static dispatch instead
-	struct P2PSignalConnection;
+
+	// struct P2PSignalConnection;
 
 	// This method send the buffer to Signaling Server
 	// it's implemented in 'humblenet_p2p_signaling.cpp'
-	ha_bool sendP2PMessage(P2PSignalConnection *conn, const uint8_t *buff, size_t length) WARN_UNUSED_RESULT;
+	ha_bool sendP2PMessage(ISignalingProvider *conn, const uint8_t *buff, size_t length) WARN_UNUSED_RESULT;
 
 	/*
 	  P2POffer contains
@@ -92,28 +94,28 @@ namespace humblenet {
 	ha_bool parseMessage(std::vector<uint8_t> &recvBuf, ProcessMsgFunc processFunc, void *user_data);
 
 	// Peer server connection
-	ha_bool sendHelloServer(humblenet::P2PSignalConnection *conn, uint8_t flags,
+	ha_bool sendHelloServer(ISignalingProvider *conn, uint8_t flags,
 							const std::string& gametoken, const std::string& gamesecret,
 							const std::string& authToken, const std::string& reconnectToken,
 							const std::map<std::string, std::string>& attributes);
-	ha_bool sendHelloClient(humblenet::P2PSignalConnection *conn, PeerId peerId,
+	ha_bool sendHelloClient(ISignalingProvider *conn, PeerId peerId,
 							const std::string& reconnectToken,
 							const std::vector<ICEServer>& iceServers);
 
 	// P2P Handling
-	ha_bool sendNoSuchPeer(humblenet::P2PSignalConnection *conn, PeerId peerId);
-	ha_bool sendPeerRefused(humblenet::P2PSignalConnection *conn, PeerId peerId);
-	ha_bool sendP2PConnect(P2PSignalConnection *conn, PeerId peerId, uint8_t flags, const char* offer);
-	ha_bool sendP2PResponse(P2PSignalConnection *conn, PeerId peerId, const char* offer);
-	ha_bool sendICECandidate(humblenet::P2PSignalConnection *conn, PeerId peerId, const char* offer);
-	ha_bool sendP2PDisconnect(humblenet::P2PSignalConnection *conn, PeerId peer);
-	ha_bool sendP2PRelayData(humblenet::P2PSignalConnection *conn, PeerId peer, const void* data, uint16_t length);
+	ha_bool sendNoSuchPeer(ISignalingProvider *conn, PeerId peerId);
+	ha_bool sendPeerRefused(ISignalingProvider *conn, PeerId peerId);
+	ha_bool sendP2PConnect(ISignalingProvider *conn, PeerId peerId, uint8_t flags, const char* offer);
+	ha_bool sendP2PResponse(ISignalingProvider *conn, PeerId peerId, const char* offer);
+	ha_bool sendICECandidate(ISignalingProvider *conn, PeerId peerId, const char* offer);
+	ha_bool sendP2PDisconnect(ISignalingProvider *conn, PeerId peer);
+	ha_bool sendP2PRelayData(ISignalingProvider *conn, PeerId peer, const void* data, uint16_t length);
 
 	// Name Alias
-	ha_bool sendAliasRegister(P2PSignalConnection *conn, const std::string& alias);
-	ha_bool sendAliasUnregister(P2PSignalConnection *conn, const std::string& alias);
-	ha_bool sendAliasLookup(P2PSignalConnection *conn, const std::string& alias);
-	ha_bool sendAliasResolved(P2PSignalConnection *conn, const std::string& alias, PeerId peer);
+	ha_bool sendAliasRegister(ISignalingProvider *conn, const std::string& alias);
+	ha_bool sendAliasUnregister(ISignalingProvider *conn, const std::string& alias);
+	ha_bool sendAliasLookup(ISignalingProvider *conn, const std::string& alias);
+	ha_bool sendAliasResolved(ISignalingProvider *conn, const std::string& alias, PeerId peer);
 
 }  // namespace humblenet
 

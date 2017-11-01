@@ -61,7 +61,7 @@ namespace humblenet {
 
 	// Sending and parsing
 
-	inline ha_bool WARN_UNUSED_RESULT sendP2PMessage(P2PSignalConnection *conn, const flatbuffers::FlatBufferBuilder& fbb)
+	inline ha_bool WARN_UNUSED_RESULT sendP2PMessage(ISignalingProvider *conn, const flatbuffers::FlatBufferBuilder& fbb)
 	{
 		uint8_t *buff = fbb.GetBufferPointer();
 		flatbuffers::uoffset_t size = fbb.GetSize();
@@ -133,7 +133,7 @@ namespace humblenet {
 
 	// ** Peer server connection
 
-	ha_bool sendHelloServer(P2PSignalConnection *conn, uint8_t flags,
+	ha_bool sendHelloServer(ISignalingProvider *conn, uint8_t flags,
 							const std::string& gametoken, const std::string& gamesecret,
 							const std::string& authToken, const std::string& reconnectToken,
 							const std::map<std::string, std::string>& attributes)
@@ -200,7 +200,7 @@ namespace humblenet {
 	}
 
 
-	ha_bool sendHelloClient(P2PSignalConnection *conn, PeerId peerId, const std::string& reconnectToken, const std::vector<ICEServer>& iceServers)
+	ha_bool sendHelloClient(ISignalingProvider *conn, PeerId peerId, const std::string& reconnectToken, const std::vector<ICEServer>& iceServers)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 
@@ -230,7 +230,7 @@ namespace humblenet {
 
 	// ** P2P Negotiation messages
 
-	ha_bool sendNoSuchPeer(P2PSignalConnection *conn, PeerId peerId)
+	ha_bool sendNoSuchPeer(ISignalingProvider *conn, PeerId peerId)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateP2PReject(fbb, peerId, HumblePeer::P2PRejectReason::NotFound);
@@ -240,7 +240,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendPeerRefused(P2PSignalConnection *conn, PeerId peerId)
+	ha_bool sendPeerRefused(ISignalingProvider *conn, PeerId peerId)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateP2PReject(fbb, peerId, HumblePeer::P2PRejectReason::PeerRefused);
@@ -250,7 +250,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendP2PConnect(P2PSignalConnection *conn, PeerId peerId, uint8_t flags, const char* offer)
+	ha_bool sendP2PConnect(ISignalingProvider *conn, PeerId peerId, uint8_t flags, const char* offer)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateP2POffer(fbb, peerId, flags, fbb.CreateString(offer));
@@ -260,7 +260,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendP2PResponse(P2PSignalConnection *conn, PeerId peerId, const char* offer)
+	ha_bool sendP2PResponse(ISignalingProvider *conn, PeerId peerId, const char* offer)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateP2PAnswer(fbb, peerId, fbb.CreateString(offer));
@@ -270,7 +270,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendICECandidate(P2PSignalConnection *conn, PeerId peerId, const char* offer)
+	ha_bool sendICECandidate(ISignalingProvider *conn, PeerId peerId, const char* offer)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateICECandidate(fbb, peerId, fbb.CreateString(offer));
@@ -280,7 +280,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendP2PDisconnect(P2PSignalConnection *conn, PeerId peerId)
+	ha_bool sendP2PDisconnect(ISignalingProvider *conn, PeerId peerId)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateP2PDisconnect(fbb, peerId);
@@ -291,7 +291,7 @@ namespace humblenet {
 
 	}
 
-	ha_bool sendP2PRelayData(humblenet::P2PSignalConnection *conn, PeerId peerId, const void* data, uint16_t length) {
+	ha_bool sendP2PRelayData(ISignalingProvider *conn, PeerId peerId, const void* data, uint16_t length) {
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateP2PRelayData(fbb, peerId, fbb.CreateVector((int8_t*)data, length));
 		auto msg = HumblePeer::CreateMessage(fbb, HumblePeer::MessageType::P2PRelayData, packet.Union());
@@ -302,7 +302,7 @@ namespace humblenet {
 
 	// ** Name Alias messages
 
-	ha_bool sendAliasRegister(P2PSignalConnection *conn, const std::string& alias)
+	ha_bool sendAliasRegister(ISignalingProvider *conn, const std::string& alias)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateAliasRegister(fbb, fbb.CreateString(alias));
@@ -312,7 +312,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendAliasUnregister(P2PSignalConnection *conn, const std::string& alias)
+	ha_bool sendAliasUnregister(ISignalingProvider *conn, const std::string& alias)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateAliasUnregister(fbb, CreateFBBStringIfNotEmpty(fbb, alias));
@@ -322,7 +322,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendAliasLookup(P2PSignalConnection *conn, const std::string& alias)
+	ha_bool sendAliasLookup(ISignalingProvider *conn, const std::string& alias)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateAliasLookup(fbb, fbb.CreateString(alias));
@@ -332,7 +332,7 @@ namespace humblenet {
 		return sendP2PMessage(conn, fbb);
 	}
 
-	ha_bool sendAliasResolved(P2PSignalConnection *conn, const std::string& alias, PeerId peer)
+	ha_bool sendAliasResolved(ISignalingProvider *conn, const std::string& alias, PeerId peer)
 	{
 		flatbuffers::FlatBufferBuilder fbb(DEFAULT_FBB_SIZE, &peer_fbb_allocator);
 		auto packet = HumblePeer::CreateAliasResolved(fbb, fbb.CreateString(alias), peer);

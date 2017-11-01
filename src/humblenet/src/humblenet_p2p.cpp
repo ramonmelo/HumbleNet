@@ -13,6 +13,11 @@ std::map<PeerId, Connection*> p2pconnections;
 
 static bool initialized = false;
 
+ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(ISignalingProvider* provider) {
+
+	return false;
+}
+
 /*
  * Is the peer-to-peer network initialized.
  */

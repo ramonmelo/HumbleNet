@@ -5,6 +5,7 @@
 #include "libsocket.h"
 
 #include "humblenet_p2p_signaling.h"
+#include "humblenet_p2p_signaling_provider.h"
 
 #include <memory>
 #include <queue>
@@ -85,7 +86,7 @@ typedef struct HumbleNetState {
 
 	PeerId myPeerId;
 
-	std::unique_ptr<humblenet::P2PSignalConnection> p2pConn;
+	std::unique_ptr<ISignalingProvider> p2pConn;
 
 	std::string signalingServerAddr;
 	std::string gameToken;

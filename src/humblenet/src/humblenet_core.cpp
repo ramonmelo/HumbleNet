@@ -200,7 +200,7 @@ int humblenet_connection_write(Connection *connection, const void *buf, uint32_t
 
 			const char* use_relay = humblenet_get_hint("p2p_use_relay");
 			if( use_relay && *use_relay == '1' ) {
-				if( ! sendP2PRelayData( humbleNetState.p2pConn.get(), connection->otherPeer, buf, bufsize ) ) {
+				if( ! humblenet::sendP2PRelayData( humbleNetState.p2pConn.get(), connection->otherPeer, buf, bufsize ) ) {
 					return -1;
 				}
 				return bufsize;
@@ -313,7 +313,7 @@ PeerId humblenet_connection_get_peer_id(Connection *connection) {
 
 
 // called to return the sdp offer
-int on_sdp( internal_socket_t* s, const char* offer, void* user_data ) {
+int on_sdp(internal_socket_t* s, const char* offer, void* user_data) {
 	HUMBLENET_GUARD();
 
 	Connection* conn = reinterpret_cast<Connection*>(user_data);
@@ -330,12 +330,12 @@ int on_sdp( internal_socket_t* s, const char* offer, void* user_data ) {
 
 	if( conn->inOrOut == Incoming ) {
 		LOG("P2PConnect SDP sent %u response offer = \"%s\"\n", conn->otherPeer, offer);
-		if( ! sendP2PResponse(humbleNetState.p2pConn.get(), conn->otherPeer, offer) ) {
+		if( ! humblenet::sendP2PResponse(humbleNetState.p2pConn.get(), conn->otherPeer, offer) ) {
 			return -1;
 		}
 	} else {
 		LOG("outgoing SDP sent %u offer: \"%s\"\n", conn->otherPeer, offer);
-		if( ! sendP2PConnect(humbleNetState.p2pConn.get(), conn->otherPeer, flags, offer) ) {
+		if( ! humblenet::sendP2PConnect(humbleNetState.p2pConn.get(), conn->otherPeer, flags, offer) ) {
 			return -1;
 		}
 	}
@@ -343,7 +343,7 @@ int on_sdp( internal_socket_t* s, const char* offer, void* user_data ) {
 }
 
 // called to send a candidate
-int on_ice_candidate( internal_socket_t* s, const char* offer, void* user_data ) {
+int on_ice_candidate(internal_socket_t* s, const char* offer, void* user_data) {
 	HUMBLENET_GUARD();
 
 	Connection* conn = reinterpret_cast<Connection*>(user_data);
@@ -356,7 +356,7 @@ int on_ice_candidate( internal_socket_t* s, const char* offer, void* user_data )
 	assert( conn->status == HUMBLENET_CONNECTION_CONNECTING );
 
 	LOG("Sending ice candidate to peer: %u, %s\n", conn->otherPeer, offer );
-	if( ! sendICECandidate(humbleNetState.p2pConn.get(), conn->otherPeer, offer) ) {
+	if(!humblenet::sendICECandidate(humbleNetState.p2pConn.get(), conn->otherPeer, offer)) {
 		return -1;
 	}
 

@@ -15,8 +15,7 @@
 #endif
 
 
-static ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data);
-// static ha_bool p2pExternalSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data);
+// static ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data);
 
 ha_bool humblenet_signaling_connect() {
 	using namespace humblenet;
@@ -29,17 +28,26 @@ ha_bool humblenet_signaling_connect() {
 
 	LOG("connecting to signaling server \"%s\" with gameToken \"%s\" \n", humbleNetState.signalingServerAddr.c_str(), humbleNetState.gameToken.c_str());
 
-	humbleNetState.p2pConn.reset(new P2PSignalConnection);
-	humbleNetState.p2pConn->wsi = internal_connect_websocket(humbleNetState.signalingServerAddr.c_str(), "humblepeer");
+	humbleNetState.p2pConn.reset(new HumblenetSignalProvider);
 
-	if (humbleNetState.p2pConn->wsi == NULL) {
+	if (!humbleNetState.p2pConn->connect( &humbleNetState.signalingServerAddr )) {
+
 		humbleNetState.p2pConn.reset();
-		// TODO: can we get more specific reason ?
-		humblenet_set_error("WebSocket connection to signaling server failed");
+		humblenet_set_error("Connection to signaling server failed");
+
 		return false;
 	}
 
-	LOG("new wsi: %p\n", humbleNetState.p2pConn->wsi);
+	// humbleNetState.p2pConn->wsi = internal_connect_websocket(humbleNetState.signalingServerAddr.c_str(), "humblepeer");
+
+	// if (humbleNetState.p2pConn->wsi == NULL) {
+	// 	humbleNetState.p2pConn.reset();
+	// 	// TODO: can we get more specific reason ?
+	// 	humblenet_set_error("WebSocket connection to signaling server failed");
+	// 	return false;
+	// }
+
+	// LOG("new wsi: %p\n", humbleNetState.p2pConn->wsi);
 
 	internal_poll_io();
 	return true;
@@ -47,13 +55,7 @@ ha_bool humblenet_signaling_connect() {
 
 namespace humblenet {
 
-	ha_bool injectData(const uint8_t *buff, size_t length) {
-
-		return false;
-	}
-
-	ha_bool sendP2PMessage(P2PSignalConnection *conn, const uint8_t *buff, size_t length)
-	{
+	ha_bool sendP2PMessage(ISignalingProvider *conn, const uint8_t *buff, size_t length) {
 		if( conn == NULL ) {
 			// this equates to the state where we never established / got disconnected
 			// from the peer server.
@@ -62,16 +64,23 @@ namespace humblenet {
 		}
 
 		assert(conn != NULL);
-		if (conn->wsi == NULL) {
+
+		if (!conn->is_connected()) {
 			// this really shouldn't happen but apparently it can
 			// if the game hasn't properly opened a signaling connection
 			return false;
 		}
 
+		// if (conn->wsi == NULL) {
+		// 	return false;
+		// }
+
 		{
 			HUMBLENET_UNGUARD();
 
-			int ret = internal_write_socket(conn->wsi, (const void*)buff, length );
+			int ret = conn->send( buff, length );
+
+			// int ret = internal_write_socket(conn->wsi, (const void*)buff, length );
 
 			return ret == length;
 		}
@@ -104,13 +113,20 @@ namespace humblenet {
 		}
 
 		// temporary copy, doesn't transfer ownership
-		P2PSignalConnection *conn = humbleNetState.p2pConn.get();
-		if (conn->wsi != s) {
-			// this connection is not the one currently active in humbleNetState.
-			// this one must be obsolete, close it
+		ISignalingProvider *conn = humbleNetState.p2pConn.get();
+
+		if (!conn->is_connected()) {
 			return -1;
 		}
+
+		// if (conn->wsi != s) {
+		// 	// this connection is not the one currently active in humbleNetState.
+		// 	// this one must be obsolete, close it
+		// 	return -1;
+		// }
+
 		// platform info
+
 		std::string pinfo;
 #if defined(__APPLE__) || defined(__linux__)
 		struct utsname buf;
@@ -197,19 +213,27 @@ namespace humblenet {
 		}
 
 		// temporary copy, doesn't transfer ownership
-		P2PSignalConnection *conn = humbleNetState.p2pConn.get();
-		if (conn->wsi != s) {
-			// this connection is not the one currently active in humbleNetState.
-			// this one must be obsolete, close it
+		ISignalingProvider *conn = humbleNetState.p2pConn.get();
+
+		if (!conn->is_connected()) {
 			return -1;
 		}
 
+		// if (conn->wsi != s) {
+		// 	// this connection is not the one currently active in humbleNetState.
+		// 	// this one must be obsolete, close it
+		// 	return -1;
+		// }
+
 		//        LOG("Data: %d -> %s\n", len, std::string((const char*)data,len).c_str());
 
-		conn->recvBuf.insert(conn->recvBuf.end()
-							 , reinterpret_cast<const char *>(data)
-							 , reinterpret_cast<const char *>(data) + len);
-		ha_bool retval = parseMessage(conn->recvBuf, p2pSignalProcess, NULL);
+		ha_bool retval = conn->receive(reinterpret_cast<const uint8_t*>(data), len, user_data);
+
+		// conn->recvBuf.insert(conn->recvBuf.end()
+		// 					 , reinterpret_cast<const char *>(data)
+		// 					 , reinterpret_cast<const char *>(data) + len);
+
+		// ha_bool retval = parseMessage(conn->recvBuf, p2pSignalProcess, NULL);
 
 		LOG("\t\ton_data \n");
 
@@ -233,28 +257,39 @@ namespace humblenet {
 		}
 
 		// temporary copy, doesn't transfer ownership
-		P2PSignalConnection *conn = humbleNetState.p2pConn.get();
-		if (conn->wsi != s) {
-			// this connection is not the one currently active in humbleNetState.
-			// this one must be obsolete, close it
+		ISignalingProvider *conn = humbleNetState.p2pConn.get();
+
+		if (!conn->is_connected()) {
 			return -1;
 		}
 
-		if (conn->sendBuf.empty()) {
-			// no data in sendBuf
-			return 0;
-		}
+		// if (conn->wsi != s) {
+		// 	// this connection is not the one currently active in humbleNetState.
+		// 	// this one must be obsolete, close it
+		// 	return -1;
+		// }
 
-		int retval = internal_write_socket( conn->wsi, &conn->sendBuf[0], conn->sendBuf.size() );
+		int retval = conn->send(NULL, 0);
+
 		if (retval < 0) {
-			// error while sending, close the connection
-			// TODO: should try to reopen after some time
-			humbleNetState.p2pConn.reset();
 			return -1;
 		}
 
-		// successful write
-		conn->sendBuf.erase(conn->sendBuf.begin(), conn->sendBuf.begin() + retval);
+		// if (conn->sendBuf.empty()) {
+		// 	// no data in sendBuf
+		// 	return 0;
+		// }
+
+		// int retval = internal_write_socket( conn->wsi, &conn->sendBuf[0], conn->sendBuf.size() );
+		// if (retval < 0) {
+		// 	// error while sending, close the connection
+		// 	// TODO: should try to reopen after some time
+		// 	humbleNetState.p2pConn.reset();
+		// 	return -1;
+		// }
+
+		// // successful write
+		// conn->sendBuf.erase(conn->sendBuf.begin(), conn->sendBuf.begin() + retval);
 
 		return 0;
 	}
@@ -264,7 +299,8 @@ namespace humblenet {
 		HUMBLENET_GUARD();
 
 		if( humbleNetState.p2pConn ) {
-			if( s == humbleNetState.p2pConn->wsi ) {
+			if (!humbleNetState.p2pConn->is_connected()) {
+			// if( s == humbleNetState.p2pConn->wsi ) {
 
 				// handle retry...
 				humbleNetState.p2pConn.reset();
@@ -291,7 +327,7 @@ namespace humblenet {
 
 		internal_register_protocol( humbleNetState.context, "humblepeer", &callbacks );
 	}
-}
+
 
 // static ha_bool p2pExternalSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data)
 // {
@@ -353,248 +389,249 @@ namespace humblenet {
 // 	return true;
 // }
 
-static ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data)
-{
-	using namespace humblenet;
+	// ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data) {
 
-	auto msgType = msg->message_type();
+	// 	using namespace humblenet;
 
-	switch (msgType) {
-		case HumblePeer::MessageType::P2POffer:
-		{
-			auto p2p = reinterpret_cast<const HumblePeer::P2POffer*>(msg->message());
-			PeerId peer = static_cast<PeerId>(p2p->peerId());
+	// 	auto msgType = msg->message_type();
 
-			if (humbleNetState.pendingPeerConnectionsIn.find(peer) != humbleNetState.pendingPeerConnectionsIn.end()) {
-				// error, already a pending incoming connection to this peer
-				LOG("p2pSignalProcess: already a pending connection to peer %u\n", peer);
-				return true;
-			}
+	// 	switch (msgType) {
+	// 		case HumblePeer::MessageType::P2POffer:
+	// 		{
+	// 			auto p2p = reinterpret_cast<const HumblePeer::P2POffer*>(msg->message());
+	// 			PeerId peer = static_cast<PeerId>(p2p->peerId());
 
-			bool emulated = ( p2p->flags() & 0x1 );
+	// 			if (humbleNetState.pendingPeerConnectionsIn.find(peer) != humbleNetState.pendingPeerConnectionsIn.end()) {
+	// 				// error, already a pending incoming connection to this peer
+	// 				LOG("p2pSignalProcess: already a pending connection to peer %u\n", peer);
+	// 				return true;
+	// 			}
 
-			if (emulated || !humbleNetState.webRTCSupported) {
-				// webrtc connections not supported
-				assert(humbleNetState.p2pConn);
-				sendPeerRefused(humbleNetState.p2pConn.get(), peer);
-			}
+	// 			bool emulated = ( p2p->flags() & 0x1 );
 
-			Connection *connection = new Connection(Incoming);
-			connection->status = HUMBLENET_CONNECTION_CONNECTING;
-			connection->otherPeer = peer;
-			{
-				HUMBLENET_UNGUARD();
-				connection->socket = internal_create_webrtc(humbleNetState.context);
-			}
-			internal_set_data( connection->socket, connection );
+	// 			if (emulated || !humbleNetState.webRTCSupported) {
+	// 				// webrtc connections not supported
+	// 				assert(humbleNetState.p2pConn);
+	// 				sendPeerRefused(humbleNetState.p2pConn.get(), peer);
+	// 			}
 
-			humbleNetState.pendingPeerConnectionsIn.insert(std::make_pair(peer, connection));
+	// 			Connection *connection = new Connection(Incoming);
+	// 			connection->status = HUMBLENET_CONNECTION_CONNECTING;
+	// 			connection->otherPeer = peer;
+	// 			{
+	// 				HUMBLENET_UNGUARD();
+	// 				connection->socket = internal_create_webrtc(humbleNetState.context);
+	// 			}
+	// 			internal_set_data( connection->socket, connection );
 
-			auto offer = p2p->offer();
+	// 			humbleNetState.pendingPeerConnectionsIn.insert(std::make_pair(peer, connection));
 
-			LOG("P2PConnect SDP got %u's offer = \"%s\"\n", peer, offer->c_str());
-			int ret;
-			{
-				HUMBLENET_UNGUARD();
-				ret = internal_set_offer( connection->socket, offer->c_str() );
-			}
-			if( ! ret )
-			{
-				humblenet_connection_close( connection );
+	// 			auto offer = p2p->offer();
 
-				sendPeerRefused(humbleNetState.p2pConn.get(), peer);
-			}
-		}
-			break;
+	// 			LOG("P2PConnect SDP got %u's offer = \"%s\"\n", peer, offer->c_str());
+	// 			int ret;
+	// 			{
+	// 				HUMBLENET_UNGUARD();
+	// 				ret = internal_set_offer( connection->socket, offer->c_str() );
+	// 			}
+	// 			if( ! ret )
+	// 			{
+	// 				humblenet_connection_close( connection );
 
-		case HumblePeer::MessageType::P2PAnswer:
-		{
-			auto p2p = reinterpret_cast<const HumblePeer::P2PAnswer*>(msg->message());
-			PeerId peer = static_cast<PeerId>(p2p->peerId());
+	// 				sendPeerRefused(humbleNetState.p2pConn.get(), peer);
+	// 			}
+	// 		}
+	// 			break;
 
-			auto it = humbleNetState.pendingPeerConnectionsOut.find(peer);
-			if (it == humbleNetState.pendingPeerConnectionsOut.end()) {
-				LOG("P2PResponse for connection we didn't initiate: %u\n", peer);
-				return true;
-			}
+	// 		case HumblePeer::MessageType::P2PAnswer:
+	// 		{
+	// 			auto p2p = reinterpret_cast<const HumblePeer::P2PAnswer*>(msg->message());
+	// 			PeerId peer = static_cast<PeerId>(p2p->peerId());
 
-			Connection *conn = it->second;
-			assert(conn != NULL);
-			assert(conn->otherPeer == peer);
+	// 			auto it = humbleNetState.pendingPeerConnectionsOut.find(peer);
+	// 			if (it == humbleNetState.pendingPeerConnectionsOut.end()) {
+	// 				LOG("P2PResponse for connection we didn't initiate: %u\n", peer);
+	// 				return true;
+	// 			}
 
-			assert(conn->socket != NULL);
-			// TODO: deal with _CLOSED
-			assert(conn->status == HUMBLENET_CONNECTION_CONNECTING);
+	// 			Connection *conn = it->second;
+	// 			assert(conn != NULL);
+	// 			assert(conn->otherPeer == peer);
 
-			auto offer = p2p->offer();
+	// 			assert(conn->socket != NULL);
+	// 			// TODO: deal with _CLOSED
+	// 			assert(conn->status == HUMBLENET_CONNECTION_CONNECTING);
 
-			LOG("P2PResponse SDP got %u's response offer = \"%s\"\n", peer, offer->c_str());
-			int ret;
-			{
-				HUMBLENET_UNGUARD();
-				ret = internal_set_answer( conn->socket, offer->c_str() );
-			}
-			if( !ret ) {
-				humblenet_connection_set_closed( conn );
-			}
-		}
-			break;
+	// 			auto offer = p2p->offer();
 
-		case HumblePeer::MessageType::HelloClient:
-		{
-			auto hello = reinterpret_cast<const HumblePeer::HelloClient*>(msg->message());
-			PeerId peer = static_cast<PeerId>(hello->peerId());
+	// 			LOG("P2PResponse SDP got %u's response offer = \"%s\"\n", peer, offer->c_str());
+	// 			int ret;
+	// 			{
+	// 				HUMBLENET_UNGUARD();
+	// 				ret = internal_set_answer( conn->socket, offer->c_str() );
+	// 			}
+	// 			if( !ret ) {
+	// 				humblenet_connection_set_closed( conn );
+	// 			}
+	// 		}
+	// 			break;
 
-			if (humbleNetState.myPeerId != 0) {
-				LOG("Error: got HelloClient but we already have a peer id\n");
-				return true;
-			}
-			LOG("My peer id is %u\n", peer);
-			humbleNetState.myPeerId = peer;
+	// 		case HumblePeer::MessageType::HelloClient:
+	// 		{
+	// 			auto hello = reinterpret_cast<const HumblePeer::HelloClient*>(msg->message());
+	// 			PeerId peer = static_cast<PeerId>(hello->peerId());
 
-			humbleNetState.iceServers.clear();
+	// 			if (humbleNetState.myPeerId != 0) {
+	// 				LOG("Error: got HelloClient but we already have a peer id\n");
+	// 				return true;
+	// 			}
+	// 			LOG("My peer id is %u\n", peer);
+	// 			humbleNetState.myPeerId = peer;
 
-			if (hello->iceServers()) {
-				auto iceList = hello->iceServers();
-				for (const auto& it : *iceList) {
-					if (it->type() == HumblePeer::ICEServerType::STUNServer) {
-						humbleNetState.iceServers.emplace_back(it->server()->str());
-					} else if (it->type() == HumblePeer::ICEServerType::TURNServer) {
-						auto username = it->username();
-						auto pass = it->password();
-						if (pass && username) {
-							humbleNetState.iceServers.emplace_back(it->server()->str(), username->str(), pass->str());
-						}
-					}
-				}
-			} else {
-				LOG("No STUN/TURN credentials provided by the server\n");
-			}
+	// 			humbleNetState.iceServers.clear();
 
-			std::vector<const char*> stunServers;
-			for (auto& it : humbleNetState.iceServers) {
-				if (it.type == HumblePeer::ICEServerType::STUNServer) {
-					stunServers.emplace_back(it.server.c_str());
-				}
-			}
-			internal_set_stun_servers(humbleNetState.context, stunServers.data(), stunServers.size());
-			//            internal_set_turn_server( server.c_str(), username.c_str(), password.c_str() );
-		}
-			break;
+	// 			if (hello->iceServers()) {
+	// 				auto iceList = hello->iceServers();
+	// 				for (const auto& it : *iceList) {
+	// 					if (it->type() == HumblePeer::ICEServerType::STUNServer) {
+	// 						humbleNetState.iceServers.emplace_back(it->server()->str());
+	// 					} else if (it->type() == HumblePeer::ICEServerType::TURNServer) {
+	// 						auto username = it->username();
+	// 						auto pass = it->password();
+	// 						if (pass && username) {
+	// 							humbleNetState.iceServers.emplace_back(it->server()->str(), username->str(), pass->str());
+	// 						}
+	// 					}
+	// 				}
+	// 			} else {
+	// 				LOG("No STUN/TURN credentials provided by the server\n");
+	// 			}
 
-		case HumblePeer::MessageType::ICECandidate:
-		{
-			auto iceCandidate = reinterpret_cast<const HumblePeer::ICECandidate*>(msg->message());
-			PeerId peer = static_cast<PeerId>(iceCandidate->peerId());
+	// 			std::vector<const char*> stunServers;
+	// 			for (auto& it : humbleNetState.iceServers) {
+	// 				if (it.type == HumblePeer::ICEServerType::STUNServer) {
+	// 					stunServers.emplace_back(it.server.c_str());
+	// 				}
+	// 			}
+	// 			internal_set_stun_servers(humbleNetState.context, stunServers.data(), stunServers.size());
+	// 			//            internal_set_turn_server( server.c_str(), username.c_str(), password.c_str() );
+	// 		}
+	// 			break;
 
-			auto it = humbleNetState.pendingPeerConnectionsIn.find( peer );
+	// 		case HumblePeer::MessageType::ICECandidate:
+	// 		{
+	// 			auto iceCandidate = reinterpret_cast<const HumblePeer::ICECandidate*>(msg->message());
+	// 			PeerId peer = static_cast<PeerId>(iceCandidate->peerId());
 
-			if( it == humbleNetState.pendingPeerConnectionsIn.end() )
-			{
-				it = humbleNetState.pendingPeerConnectionsOut.find( peer );
-				if( it == humbleNetState.pendingPeerConnectionsOut.end() )
-				{
-					// no connection waiting on a peer.
-					return true;
-				}
-			}
+	// 			auto it = humbleNetState.pendingPeerConnectionsIn.find( peer );
 
-			if( it->second->socket && it->second->status == HUMBLENET_CONNECTION_CONNECTING ) {
-				auto offer = iceCandidate->offer();
-				LOG("Got ice candidate from peer: %d, %s\n", it->second->otherPeer, offer->c_str() );
+	// 			if( it == humbleNetState.pendingPeerConnectionsIn.end() )
+	// 			{
+	// 				it = humbleNetState.pendingPeerConnectionsOut.find( peer );
+	// 				if( it == humbleNetState.pendingPeerConnectionsOut.end() )
+	// 				{
+	// 					// no connection waiting on a peer.
+	// 					return true;
+	// 				}
+	// 			}
 
-				{
-					HUMBLENET_UNGUARD();
+	// 			if( it->second->socket && it->second->status == HUMBLENET_CONNECTION_CONNECTING ) {
+	// 				auto offer = iceCandidate->offer();
+	// 				LOG("Got ice candidate from peer: %d, %s\n", it->second->otherPeer, offer->c_str() );
 
-					internal_add_ice_candidate( it->second->socket, offer->c_str() );
-				}
-			}
-		}
-			break;
+	// 				{
+	// 					HUMBLENET_UNGUARD();
 
-		case HumblePeer::MessageType::P2PReject:
-		{
-			auto reject = reinterpret_cast<const HumblePeer::P2PReject*>(msg->message());
-			PeerId peer = static_cast<PeerId>(reject->peerId());
+	// 					internal_add_ice_candidate( it->second->socket, offer->c_str() );
+	// 				}
+	// 			}
+	// 		}
+	// 			break;
 
-			auto it = humbleNetState.pendingPeerConnectionsOut.find(peer);
-			if (it == humbleNetState.pendingPeerConnectionsOut.end()) {
-				switch (reject->reason()) {
-					case HumblePeer::P2PRejectReason::NotFound:
-						LOG("Peer %u does not exist\n", peer);
-						break;
-					case HumblePeer::P2PRejectReason::PeerRefused:
-						LOG("Peer %u rejected our connection\n", peer);
-						break;
-				}
-				return true;
-			}
+	// 		case HumblePeer::MessageType::P2PReject:
+	// 		{
+	// 			auto reject = reinterpret_cast<const HumblePeer::P2PReject*>(msg->message());
+	// 			PeerId peer = static_cast<PeerId>(reject->peerId());
 
-			Connection *conn = it->second;
-			assert(conn != NULL);
+	// 			auto it = humbleNetState.pendingPeerConnectionsOut.find(peer);
+	// 			if (it == humbleNetState.pendingPeerConnectionsOut.end()) {
+	// 				switch (reject->reason()) {
+	// 					case HumblePeer::P2PRejectReason::NotFound:
+	// 						LOG("Peer %u does not exist\n", peer);
+	// 						break;
+	// 					case HumblePeer::P2PRejectReason::PeerRefused:
+	// 						LOG("Peer %u rejected our connection\n", peer);
+	// 						break;
+	// 				}
+	// 				return true;
+	// 			}
 
-			blacklist_peer(peer);
-			humblenet_connection_set_closed(conn);
-		}
-			break;
+	// 			Connection *conn = it->second;
+	// 			assert(conn != NULL);
 
-		case HumblePeer::MessageType::P2PConnected:
-		{
-			auto connect = reinterpret_cast<const HumblePeer::P2PConnected*>(msg->message());
+	// 			blacklist_peer(peer);
+	// 			humblenet_connection_set_closed(conn);
+	// 		}
+	// 			break;
 
-			LOG("Established connection to peer %u", connect->peerId());
-		}
-			break;
+	// 		case HumblePeer::MessageType::P2PConnected:
+	// 		{
+	// 			auto connect = reinterpret_cast<const HumblePeer::P2PConnected*>(msg->message());
 
-		case HumblePeer::MessageType::P2PDisconnect:
-		{
-			auto disconnect = reinterpret_cast<const HumblePeer::P2PDisconnect*>(msg->message());
+	// 			LOG("Established connection to peer %u", connect->peerId());
+	// 		}
+	// 			break;
 
-			LOG("Disconnecting peer %u", disconnect->peerId());
-		}
-			break;
+	// 		case HumblePeer::MessageType::P2PDisconnect:
+	// 		{
+	// 			auto disconnect = reinterpret_cast<const HumblePeer::P2PDisconnect*>(msg->message());
 
-		case HumblePeer::MessageType::P2PRelayData:
-		{
-			auto relay = reinterpret_cast<const HumblePeer::P2PRelayData*>(msg->message());
-			auto peer = relay->peerId();
-			auto data = relay->data();
+	// 			LOG("Disconnecting peer %u", disconnect->peerId());
+	// 		}
+	// 			break;
 
-			LOG("Got %d bytes relayed from peer %u\n", data->Length(), peer );
+	// 		case HumblePeer::MessageType::P2PRelayData:
+	// 		{
+	// 			auto relay = reinterpret_cast<const HumblePeer::P2PRelayData*>(msg->message());
+	// 			auto peer = relay->peerId();
+	// 			auto data = relay->data();
 
-			// Sequentially look for the other peer
-			auto it = humbleNetState.connections.begin();
-			for( ; it != humbleNetState.connections.end(); ++it ) {
-				if( it->second->otherPeer == peer )
-					break;
-			}
-			if( it == humbleNetState.connections.end() ) {
-				LOG("Peer %u does not exist\n", peer);
-			} else {
-				Connection* conn = it->second;
+	// 			LOG("Got %d bytes relayed from peer %u\n", data->Length(), peer );
 
-				conn->recvBuffer.insert(conn->recvBuffer.end()
-										, reinterpret_cast<const char *>(data->Data())
-										, reinterpret_cast<const char *>(data->Data()) + data->Length());
-				humbleNetState.pendingDataConnections.insert( conn );
+	// 			// Sequentially look for the other peer
+	// 			auto it = humbleNetState.connections.begin();
+	// 			for( ; it != humbleNetState.connections.end(); ++it ) {
+	// 				if( it->second->otherPeer == peer )
+	// 					break;
+	// 			}
+	// 			if( it == humbleNetState.connections.end() ) {
+	// 				LOG("Peer %u does not exist\n", peer);
+	// 			} else {
+	// 				Connection* conn = it->second;
 
-				signal();
-			}
-		}
-			break;
-		case HumblePeer::MessageType::AliasResolved:
-		{
-			auto resolved = reinterpret_cast<const HumblePeer::AliasResolved*>(msg->message());
+	// 				conn->recvBuffer.insert(conn->recvBuffer.end()
+	// 										, reinterpret_cast<const char *>(data->Data())
+	// 										, reinterpret_cast<const char *>(data->Data()) + data->Length());
+	// 				humbleNetState.pendingDataConnections.insert( conn );
 
-			internal_alias_resolved_to( resolved->alias()->c_str(), resolved->peerId() );
-		}
-			break;
+	// 				signal();
+	// 			}
+	// 		}
+	// 			break;
+	// 		case HumblePeer::MessageType::AliasResolved:
+	// 		{
+	// 			auto resolved = reinterpret_cast<const HumblePeer::AliasResolved*>(msg->message());
 
-		default:
-			LOG("p2pSignalProcess unhandled %s\n", HumblePeer::EnumNameMessageType(msgType));
-			break;
-	}
+	// 			internal_alias_resolved_to( resolved->alias()->c_str(), resolved->peerId() );
+	// 		}
+	// 			break;
 
-	return true;
+	// 		default:
+	// 			LOG("p2pSignalProcess unhandled %s\n", HumblePeer::EnumNameMessageType(msgType));
+	// 			break;
+	// 	}
+
+	// 	return true;
+	// }
+
 }
-

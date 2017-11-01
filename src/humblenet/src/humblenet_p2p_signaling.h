@@ -2,27 +2,16 @@
 #define HUMBLENET_SIGNALING
 
 #include "humblepeer.h"
-#include "humblenet_p2p_signaling_provider.h"
 #include "libsocket.h"
+#include "humblenet_p2p_internal_signaling_provider.h"
 #include <vector>
 
 namespace humblenet {
 
-    struct P2PSignalConnection : public ISignalingProvider {
-        internal_socket_t *wsi;
-        std::vector<uint8_t> recvBuf;
-        std::vector<char> sendBuf;
-
-        P2PSignalConnection() : wsi(NULL) {}
-
-        void disconnect() {
-            if( wsi )
-                internal_close_socket(wsi);
-            wsi = NULL;
-        }
-    };
-
     void register_protocol( internal_context_t* contet );
+
+    // ha_bool p2pSignalProcess(const humblenet::HumblePeer::Message *msg, void *user_data);
+
 }
 
 ha_bool humblenet_signaling_connect();

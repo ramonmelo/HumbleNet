@@ -63,7 +63,7 @@ void internal_alias_resolved_to( const std::string& alias, PeerId peer ) {
 
 	if( peer == 0 ) {
 		LOG("AliasError: unable to resolve \"%s\"\n", alias.c_str());
-		
+
 		humblenet_connection_set_closed( connection );
 		return;
 	}
@@ -136,7 +136,7 @@ Connection* internal_alias_create_connection( PeerId peer ) {
 
 		std::string name = nit->second;
 
-		if (!sendAliasLookup(humbleNetState.p2pConn.get(), name)) {
+		if (!humblenet::sendAliasLookup(humbleNetState.p2pConn.get(), name)) {
 			return NULL;
 		}
 
