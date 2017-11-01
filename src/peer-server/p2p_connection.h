@@ -2,6 +2,7 @@
 
 #include "humblenet.h"
 #include "humblepeer.h"
+#include "humblenet_p2p_signaling_provider.h"
 #include "game.h"
 
 struct libwebsocket;
@@ -17,7 +18,7 @@ namespace humblenet {
 		, Closed
 	};
 
-	struct P2PSignalConnection {
+	struct P2PSignalConnection : public ISignalingProvider {
 		Server* peerServer;
 
 		std::vector<uint8_t> recvBuf;
@@ -49,9 +50,19 @@ namespace humblenet {
 		{
 		}
 
+		// Status
+        ha_bool is_connected();
+
+        // Commands
+        ha_bool connect(void* info);
+        void disconnect();
+
+        int send(const uint8_t* buff, size_t length);
+        int receive(const uint8_t* buff, size_t length, void* info);
+
 		ha_bool processMsg(const HumblePeer::Message* msg);
 
-		void sendMessage(const uint8_t *buff, size_t length);
+		// void sendMessage(const uint8_t *buff, size_t length);
 	};
 
 }

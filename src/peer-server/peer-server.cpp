@@ -41,8 +41,8 @@ using namespace humblenet;
 
 namespace humblenet {
 
-	ha_bool sendP2PMessage(P2PSignalConnection *conn, const uint8_t *buff, size_t length) {
-		conn->sendMessage(buff, length);
+	ha_bool sendP2PMessage(ISignalingProvider *conn, const uint8_t *buff, size_t length) {
+		conn->send(buff, length);
 		return true;
 	}
 

@@ -8,6 +8,37 @@
 
 
 namespace humblenet {
+
+	ha_bool P2PSignalConnection::is_connected() {
+		return false;
+	}
+
+        // Commands
+    ha_bool P2PSignalConnection::connect(void* info) {
+    	return true;
+    }
+
+    void P2PSignalConnection::disconnect() {
+
+    }
+
+    int P2PSignalConnection::send(const uint8_t* buff, size_t length) {
+
+    	bool wasEmpty = this->sendBuf.empty();
+
+		this->sendBuf.insert(this->sendBuf.end(), buff, buff + length);
+
+		if (wasEmpty) {
+			peerServer->triggerWrite(this->wsi);
+		}
+
+    	return 0;
+    }
+
+    int P2PSignalConnection::receive(const uint8_t* buff, size_t length, void* info) {
+    	return 0;
+    }
+
 	ha_bool P2PSignalConnection::processMsg(const HumblePeer::Message* msg)
 	{
 		auto msgType = msg->message_type();
@@ -187,7 +218,7 @@ namespace humblenet {
 					return true;
 				}
 
-#pragma message ("TODO handle user authentication")
+// #pragma message ("TODO handle user authentication")
 
 				this->game = peerServer->getVerifiedGame(hello);
 				if (this->game == NULL) {
@@ -220,7 +251,7 @@ namespace humblenet {
 
 				// send hello to client
 				std::string reconnectToken = "";
-	#pragma message ("TODO implement reconnect tokens")
+	// #pragma message ("TODO implement reconnect tokens")
 				sendHelloClient(this, peerId, reconnectToken, iceServers);
 			}
 				break;
@@ -274,13 +305,13 @@ namespace humblenet {
 
 				if( existing != game->aliases.end() && existing->second != peerId ) {
 					LOG_INFO("Rejecting peer %u's request to register alias '%s' which is already registered to peer %u\n", peerId, alias->c_str(), existing->second );
-	#pragma message ("TODO implement registration failure")
+	// #pragma message ("TODO implement registration failure")
 				} else {
 					if( existing == game->aliases.end() ) {
 						game->aliases.insert( std::make_pair( alias->c_str(), peerId ) );
 					}
 					LOG_INFO("Registering alias '%s' to peer %u\n", alias->c_str(), peerId );
-	#pragma message ("TODO implement registration success")
+	// #pragma message ("TODO implement registration success")
 				}
 			}
 				break;
@@ -299,16 +330,16 @@ namespace humblenet {
 						game->aliases.erase( existing );
 
 						LOG_INFO("Unregistring alias '%s' for peer %u\n", alias->c_str(), peerId );
-	#pragma message ("TODO implement unregister sucess")
+	// #pragma message ("TODO implement unregister sucess")
 					} else {
 						LOG_INFO("Rejecting unregister of alias '%s' for peer %u\n", alias->c_str(), peerId );
-	#pragma message ("TODO implement unregister failure")
+	// #pragma message ("TODO implement unregister failure")
 					}
 				} else {
 					erase_value(game->aliases, peerId);
 
 					LOG_INFO("Unregistring all aliases for peer for peer %u\n", peerId );
-	#pragma message ("TODO implement unregister sucess")
+	// #pragma message ("TODO implement unregister sucess")
 				}
 			}
 				break;
@@ -341,12 +372,12 @@ namespace humblenet {
 	}
 
 
-	void P2PSignalConnection::sendMessage(const uint8_t *buff, size_t length) {
-		bool wasEmpty = this->sendBuf.empty();
-		this->sendBuf.insert(this->sendBuf.end(), buff, buff + length);
-		if (wasEmpty) {
-			peerServer->triggerWrite(this->wsi);
-		}
-	}
+	// void P2PSignalConnection::sendMessage(const uint8_t *buff, size_t length) {
+	// 	bool wasEmpty = this->sendBuf.empty();
+	// 	this->sendBuf.insert(this->sendBuf.end(), buff, buff + length);
+	// 	if (wasEmpty) {
+	// 		peerServer->triggerWrite(this->wsi);
+	// 	}
+	// }
 
 }
