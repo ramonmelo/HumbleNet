@@ -28,6 +28,33 @@ if(FLATC_EXECUTABLE)
 	list(APPEND TEST_TARGETS
 		humblenet_test_peer
 	)
+
+	# Photon Humble Peer
+
+	CreateTool(photon_humble_peer
+	FILES
+		photon_signaling/photon_humble_peer.cpp
+		${test_peer_flatbuffers}
+	REFERENCE
+		test_peer.fbs
+	DEFINES
+		HUMBLENET_SERVER_URL=\"${HUMBLENET_SERVER_URL}\"
+	FEATURES
+		cxx_auto_type cxx_range_for
+	INCLUDES
+		${CMAKE_CURRENT_BINARY_DIR}
+	LINK
+		humblenet
+		flatbuffers
+		-g
+	PROPERTIES
+		FOLDER HumbleNet/Tests/photon_signaling
+	)
+
+	list(APPEND TEST_TARGETS
+		photon_humble_peer
+	)
+
 endif()
 
 CreateTool(humblenet_test_webrtc
