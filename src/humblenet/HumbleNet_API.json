@@ -158,13 +158,6 @@
 			]
 		}
 		,{
-			"functionname": "humblenet_p2p_use_external_signaling",
-			"returntype": "ha_bool",
-			"params": [
-				{  "paramname": "value", "paramtype": "ha_bool"}
-			]
-		}
-		,{
 			"functionname": "humblenet_p2p_set_my_peer_id",
 			"returntype": "ha_bool",
 			"params": [

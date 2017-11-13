@@ -129,11 +129,6 @@ public static class HumbleNet {
 			return NativeMethods.humblenet_p2p_init(server, client_token, client_secret, auth_token);
 		}
 
-		public static bool UseExternalSignaling(bool value)
-		{
-			return NativeMethods.humblenet_p2p_use_external_signaling(value);
-		}
-
 		public static bool setMyPeerId(PeerId peer)
 		{
 			return NativeMethods.humblenet_p2p_set_my_peer_id((UInt32)peer);

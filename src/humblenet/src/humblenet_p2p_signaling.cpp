@@ -28,7 +28,11 @@ ha_bool humblenet_signaling_connect() {
 
 	LOG("connecting to signaling server \"%s\" with gameToken \"%s\" \n", humbleNetState.signalingServerAddr.c_str(), humbleNetState.gameToken.c_str());
 
-	humbleNetState.p2pConn.reset(new HumblenetSignalProvider);
+	if ( humbleNetState.p2pConnExternal ) {
+		humbleNetState.p2pConn = std::move(humbleNetState.p2pConnExternal);
+	} else {
+		humbleNetState.p2pConn.reset(new HumblenetSignalProvider);
+	}
 
 	if (!humbleNetState.p2pConn->connect( &humbleNetState.signalingServerAddr )) {
 

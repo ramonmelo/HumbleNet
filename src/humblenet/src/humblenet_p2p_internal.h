@@ -87,6 +87,7 @@ typedef struct HumbleNetState {
 	PeerId myPeerId;
 
 	std::unique_ptr<ISignalingProvider> p2pConn;
+	std::unique_ptr<ISignalingProvider> p2pConnExternal;
 
 	std::string signalingServerAddr;
 	std::string gameToken;
