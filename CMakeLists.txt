@@ -274,3 +274,5 @@ endif()
 if(HUMBLENET_TESTS)
 	add_subdirectory(tests					test)
 endif()
+
+add_subdirectory(src/photon_signaling 	photon)
