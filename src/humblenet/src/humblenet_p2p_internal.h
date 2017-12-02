@@ -17,8 +17,8 @@
 
 enum InOrOut
 {
-	Incoming
-	, Outgoing
+	Incoming,
+	Outgoing
 };
 
 // Connection status
@@ -86,8 +86,8 @@ typedef struct HumbleNetState {
 
 	PeerId myPeerId;
 
-	std::unique_ptr<ISignalingProvider> p2pConn;
-	std::unique_ptr<ISignalingProvider> p2pConnExternal;
+	std::shared_ptr<ISignalingProvider> p2pConn;
+	std::shared_ptr<ISignalingProvider> p2pConnExternal;
 
 	std::string signalingServerAddr;
 	std::string gameToken;
@@ -155,7 +155,7 @@ struct UnGuard {
     #define HUMBLENET_UNGUARD()
 #else
     #define HUMBLENET_GUARD() Guard lock
-#define HUMBLENET_UNGUARD() UnGuard unlock
+	#define HUMBLENET_UNGUARD() UnGuard unlock
 #endif
 
 /*

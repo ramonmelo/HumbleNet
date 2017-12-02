@@ -2,81 +2,103 @@
 * @Author: ramonmelo
 * @Date:   2017-11-09
 * @Last Modified by:   Ramon Melo
-* @Last Modified time: 2017-11-24
+* @Last Modified time: 2017-12-01
 */
 
 #include "PhotonClient.h"
 
+using namespace Photon;
+
 // Signaling Provider
 
 PhotonSignalingProvider::PhotonSignalingProvider(const ExitGames::Common::JString& appID, const ExitGames::Common::JString& appVersion) :
-    mClient(appID, appVersion)
-{
-}
-
-void PhotonSignalingProvider::service() {
-    mClient.service();
-}
-
-ha_bool PhotonSignalingProvider::is_connected() {
-
-    return false;
-}
-
-// Commands
-ha_bool PhotonSignalingProvider::connect(void* info) {
-
-    return false;
-}
-
-void PhotonSignalingProvider::disconnect() {
-
-}
-
-int PhotonSignalingProvider::send(const uint8_t* buff, size_t length) {
-
-    return 0;
-}
-
-int PhotonSignalingProvider::receive(const uint8_t* buff, size_t length, void* info) {
-
-    return 0;
-}
-
-// Photon Client Impl
-
-PhotonClient::PhotonClient(const ExitGames::Common::JString& appID, const ExitGames::Common::JString& appVersion) :
     mClient(*this, appID, appVersion),
     mState(INITIALIZED),
-    mLastState(INITIALIZED)
+    debugLevel(DebugLevel::ALL),
+    running(false)
 {
     mSendCount = 0;
     mReceiveCount = 0;
 }
 
-// API
+int PhotonSignalingProvider::getId(void) {
+    return mClient.getLocalPlayer().getNumber();
+}
 
-bool PhotonClient::isConnected() {
+ha_bool PhotonSignalingProvider::is_connected() {
     return mState == State::JOINED;
 }
 
-void PhotonClient::sendData(void)
-{
-    ExitGames::Common::Hashtable event;
-    event.put(static_cast<nByte>(0), ++mSendCount);
-    // send to ourselves only
-    int myPlayerNumber = mClient.getLocalPlayer().getNumber();
-
-    mClient.opRaiseEvent(true, event, 0, ExitGames::LoadBalancing::RaiseEventOptions().setTargetPlayers(&myPlayerNumber).setNumTargetPlayers(1));
-
-    if(mSendCount >= MAX_SENDCOUNT) {
-        mState = State::SENT_DATA;
+// Commands
+ha_bool PhotonSignalingProvider::connect(void* info) {
+    while( !is_connected() ) {
+        service();
     }
+
+    humblenet_p2p_set_my_peer_id( getId() );
+
+    // startLoop();
+
+    return is_connected();
 }
 
-// Low API
+void PhotonSignalingProvider::disconnect() {
+    logger.log(ExitGames::Common::JString(L"call disconnect"));
 
-void PhotonClient::service(void) {
+    // stopLoop();
+}
+
+int PhotonSignalingProvider::send(const uint8_t* buff, size_t length)
+{
+    if (buff != NULL) {
+
+        debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"sending data: ") + length);
+
+        ExitGames::Common::Hashtable event;
+
+        // put data
+        // event.put(static_cast<nByte>(0), ++mSendCount);
+
+        event.put(static_cast<nByte>(0), buff, length);
+        event.put(static_cast<nByte>(1), (int) length);
+
+        // send to ourselves only
+        int myPlayerNumber = mClient.getLocalPlayer().getNumber();
+
+        ExitGames::LoadBalancing::RaiseEventOptions options = ExitGames::LoadBalancing::RaiseEventOptions();
+
+        options.setTargetPlayers( &myPlayerNumber );
+        options.setNumTargetPlayers(1);
+
+        mClient.opRaiseEvent(
+            true,
+            event,
+            EventType::DATA,
+            options);
+
+        return length;
+
+    } else {
+        return 0;
+    }
+
+    // if(mSendCount >= MAX_SENDCOUNT) {
+    //     mState = State::SENT_DATA;
+    // }
+}
+
+int PhotonSignalingProvider::receive(const uint8_t* buff, size_t length, void* info) {
+
+    logger.log(ExitGames::Common::JString(L"to receive data"));
+
+    return 0;
+}
+
+void PhotonSignalingProvider::setDebugLevel(int debugLevel) {
+    this->debugLevel = debugLevel;
+}
+
+void PhotonSignalingProvider::service(void) {
 
     switch(mState)
     {
@@ -90,87 +112,141 @@ void PhotonClient::service(void) {
 
             break;
         case State::CONNECTED:
+
             mClient.opJoinOrCreateRoom(gameName);
             mState = State::JOINING;
+
             break;
         case State::JOINED:
-            sendData();
+
+            // sendData();
+
             break;
         case State::RECEIVED_DATA:
-            mClient.opLeaveRoom();
-            mState = State::LEAVING;
 
-            logger.log(getStateString());
+            // mClient.opLeaveRoom();
+            // mState = State::LEAVING;
+            // logger.log(getStateString());
 
             break;
         case State::LEFT:
+
             mClient.disconnect();
             mState = State::DISCONNECTING;
+
             break;
         case State::DISCONNECTED:
-            mState = State::INITIALIZED;
+
+            // mState = State::INITIALIZED;
+
             break;
         default:
             break;
     }
 
-    // if (mState != mLastState) {
-        logger.log(getStateString());
-        // mLastState = mState;
-    // }
+    // debugReturn(DebugLevel::INFO, getStateString());
 
     mClient.service();
 }
 
+void PhotonSignalingProvider::startLoop(void) {
+
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"startLoop"));
+
+    running = true;
+
+    internalLoop = std::thread( [this] {
+        while(this->running) {
+            this->service();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    });
+}
+
+void PhotonSignalingProvider::stopLoop(void) {
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"stopLoop"));
+
+    running = false;
+    internalLoop.join();
+}
+
 // receive and print out debug out here
-void PhotonClient::debugReturn(int debugLevel, const ExitGames::Common::JString& string) {
-    logger.log(string);
+void PhotonSignalingProvider::debugReturn(int debugLevel, const ExitGames::Common::JString& string) {
+    if ( debugLevel <= this->debugLevel ) {
+        logger.log(string);
+    }
 }
 
 // implement your error-handling here
-void PhotonClient::connectionErrorReturn(int errorCode) {
-    logger.log(ExitGames::Common::JString(L"received connection error ") + errorCode);
+void PhotonSignalingProvider::connectionErrorReturn(int errorCode) {
+    debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"received connection error ") + errorCode);
+
     mState = State::DISCONNECTED;
 }
 
-void PhotonClient::clientErrorReturn(int errorCode) {
-    logger.log(ExitGames::Common::JString(L"received error ") + errorCode + L" from client");
+void PhotonSignalingProvider::clientErrorReturn(int errorCode) {
+    debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"received error ") + errorCode + L" from client");
 }
 
-void PhotonClient::warningReturn(int warningCode) {
-    logger.log(ExitGames::Common::JString(L"received warning ") + warningCode + L" from client");
+void PhotonSignalingProvider::warningReturn(int warningCode) {
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received warning ") + warningCode + L" from client");
 }
 
-void PhotonClient::serverErrorReturn(int errorCode) {
-    logger.log(ExitGames::Common::JString(L"received error ") + errorCode + L" from server");
+void PhotonSignalingProvider::serverErrorReturn(int errorCode) {
+    debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"received error ") + errorCode + L" from server");
 }
 
 // events, triggered by certain operations of all players in the same room
-void PhotonClient::joinRoomEventAction(int playerNr, const ExitGames::Common::JVector<int>& playernrs, const ExitGames::LoadBalancing::Player& player) {
-    logger.log(L"");
-    logger.log(ExitGames::Common::JString(L"player ") + playerNr + L" " + player.getName() + L" has joined the game");
+void PhotonSignalingProvider::joinRoomEventAction(int playerNr, const ExitGames::Common::JVector<int>& playernrs, const ExitGames::LoadBalancing::Player& player) {
+
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"player ") + playerNr + L" " + player.getName() + L" has joined the game");
 }
 
-void PhotonClient::leaveRoomEventAction(int playerNr, bool isInactive) {
-    logger.log(L"");
-    logger.log(ExitGames::Common::JString(L"player ") + playerNr + L" has left the game");
+void PhotonSignalingProvider::leaveRoomEventAction(int playerNr, bool isInactive) {
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"player ") + playerNr + L" has left the game");
 }
 
-void PhotonClient::customEventAction(int playerNr, nByte eventCode, const ExitGames::Common::Object& eventContentObj) {
+void PhotonSignalingProvider::customEventAction(int playerNr, nByte eventCode, const ExitGames::Common::Object& eventContentObj) {
 
     ExitGames::Common::Hashtable event = ExitGames::Common::ValueObject<ExitGames::Common::Hashtable>(eventContentObj).getDataCopy();
 
     switch(eventCode)
     {
-    case 0:
-        if(event.getValue((nByte)0))
-            mReceiveCount = ((ExitGames::Common::ValueObject<int64>*)(event.getValue((nByte)0)))->getDataCopy();
-        if(mState == State::SENT_DATA && mReceiveCount >= mSendCount)
-        {
-            mState = State::RECEIVED_DATA;
-            mSendCount = 0;
-            mReceiveCount = 0;
+    case EventType::DATA:
+
+        debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received data from ") + playerNr);
+
+        if(event.contains((nByte)0) && event.contains((nByte)1)) {
+
+            humblenet_guard();
+
+            uint8_t* buff = ExitGames::Common::ValueObject<uint8_t*>(event.getValue((nByte)0)).getDataCopy();
+            int length = ExitGames::Common::ValueObject<int>(event.getValue((nByte)1)).getDataCopy();
+
+            debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"size: ") + length);
+
+            this->recvBuf.insert(this->recvBuf.end()
+                             , reinterpret_cast<const char *>(buff)
+                             , reinterpret_cast<const char *>(buff) + length);
+
+            humblenet::parseMessage(this->recvBuf, p2pSignalProcess, NULL);
         }
+
+        // if(event.getValue((nByte)0))
+        //     mReceiveCount = ((ExitGames::Common::ValueObject<int64>*)(event.getValue((nByte)0)))->getDataCopy();
+        // if(mState == State::SENT_DATA && mReceiveCount >= mSendCount)
+        // {
+        //     mState = State::RECEIVED_DATA;
+        //     mSendCount = 0;
+        //     mReceiveCount = 0;
+        // }
+
+        break;
+    case EventType::INFO:
+
+        debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received info from ") + playerNr);
+
         break;
     default:
         break;
@@ -178,111 +254,109 @@ void PhotonClient::customEventAction(int playerNr, nByte eventCode, const ExitGa
 }
 
 // callbacks for operations on PhotonLoadBalancing server
-void PhotonClient::connectReturn(int errorCode, const ExitGames::Common::JString& errorString, const ExitGames::Common::JString& cluster) {
+void PhotonSignalingProvider::connectReturn(int errorCode, const ExitGames::Common::JString& errorString, const ExitGames::Common::JString& cluster) {
 
     if(errorCode)
     {
-        logger.log(L"connected to cluster " + errorString);
+        debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"Not connected to cluster: ") + errorString);
         mState = State::DISCONNECTING;
 
         return;
     }
 
-    logger.log(L"connected to cluster " + cluster);
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Connected to cluster: ") + cluster);
     mState = State::CONNECTED;
 }
 
-void PhotonClient::disconnectReturn(void) {
+void PhotonSignalingProvider::disconnectReturn(void) {
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Disconnected"));
 
-    logger.log(L"disconnected");
     mState = State::DISCONNECTED;
-
 }
 
-void PhotonClient::createRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
+void PhotonSignalingProvider::createRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
 
     if(errorCode)
     {
-        logger.log(L"opCreateRoom() failed: " + errorString);
+        debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"opCreateRoom() failed: ") + errorString);
         mState = State::CONNECTED;
 
         return;
     }
 
-    logger.log(L"... room " + mClient.getCurrentlyJoinedRoom().getName() + " has been created");
-    logger.log(L"regularly sending dummy events now");
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Room created: ") + mClient.getCurrentlyJoinedRoom().getName());
 
     mState = State::JOINED;
 }
 
-void PhotonClient::joinOrCreateRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
+void PhotonSignalingProvider::joinOrCreateRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
 
     if(errorCode)
     {
-        logger.log(L"opJoinOrCreateRoom() failed: " + errorString);
+        debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"opJoinOrCreateRoom() failed: ") + errorString);
         mState = State::CONNECTED;
 
         return;
     }
 
-    logger.log(L"... room " + mClient.getCurrentlyJoinedRoom().getName() + " has been entered");
-    logger.log(L"regularly sending dummy events now");
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Room joined: ") + mClient.getCurrentlyJoinedRoom().getName());
 
     mState = State::JOINED;
 }
 
-void PhotonClient::joinRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
+void PhotonSignalingProvider::joinRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
 
     if(errorCode)
     {
-        logger.log(L"opJoinRoom() failed: " + errorString);
-        mState = State::CONNECTED;
-        return;
-    }
-    logger.log(L"... room " + mClient.getCurrentlyJoinedRoom().getName() + " has been successfully joined");
-    logger.log(L"regularly sending dummy events now");
-
-    mState = State::JOINED;
-}
-
-void PhotonClient::joinRandomRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
-
-    if(errorCode)
-    {
-        logger.log(L"opJoinRandomRoom() failed: " + errorString);
+        debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"opJoinRoom() failed: ") + errorString);
         mState = State::CONNECTED;
         return;
     }
 
-    logger.log(L"... room " + mClient.getCurrentlyJoinedRoom().getName() + " has been successfully joined");
-    logger.log(L"regularly sending dummy events now");
-    mState = State::JOINED;
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Room joined: ") + mClient.getCurrentlyJoinedRoom().getName());
 
+    mState = State::JOINED;
 }
 
-void PhotonClient::leaveRoomReturn(int errorCode, const ExitGames::Common::JString& errorString) {
+void PhotonSignalingProvider::joinRandomRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString) {
 
     if(errorCode)
     {
-        logger.log(L"opLeaveRoom() failed: " + errorString);
+        debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"opJoinRandomRoom() failed: ") + errorString);
+        mState = State::CONNECTED;
+        return;
+    }
+
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Room joined: ") + mClient.getCurrentlyJoinedRoom().getName());
+
+    mState = State::JOINED;
+}
+
+void PhotonSignalingProvider::leaveRoomReturn(int errorCode, const ExitGames::Common::JString& errorString) {
+
+    if(errorCode)
+    {
+        debugReturn(DebugLevel::ERRORS, ExitGames::Common::JString(L"opLeaveRoom() failed: ") + errorString);
         mState = State::DISCONNECTING;
         return;
     }
+
     mState = State::LEFT;
-    logger.log(L"room has been successfully left");
+
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"room has been successfully left"));
 }
 
-void PhotonClient::joinLobbyReturn(void) {
-    logger.log(L"joined lobby");
+void PhotonSignalingProvider::joinLobbyReturn(void) {
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"joined lobby"));
 }
 
-void PhotonClient::leaveLobbyReturn(void) {
-    logger.log(L"left lobby");
+void PhotonSignalingProvider::leaveLobbyReturn(void) {
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"left lobby"));
 }
 
 // Utils
 
-ExitGames::Common::JString PhotonClient::getStateString(void)
+ExitGames::Common::JString PhotonSignalingProvider::getStateString(void)
 {
     switch(mState)
     {

@@ -1,95 +1,112 @@
 #pragma once
 
 #include <stdio.h>
+#include <thread>
+#include <chrono>
+
 #include "Logger.h"
 #include "LoadBalancing-cpp/inc/Client.h"
+#include "Common-cpp/inc/Enums/DebugLevel.h"
+
+#include "humblenet_p2p.h"
 #include "humblenet_p2p_signaling_provider.h"
+#include "humblenet_p2p_internal_signaling_provider.h"
 
-enum State
-{
-    INITIALIZED = 0,
-    CONNECTING,
-    CONNECTED,
-    JOINING,
-    JOINED,
-    SENT_DATA,
-    RECEIVED_DATA,
-    LEAVING,
-    LEFT,
-    DISCONNECTING,
-    DISCONNECTED
-};
+using namespace ExitGames::Common;
 
-class PhotonClient : public ExitGames::LoadBalancing::Listener {
+namespace Photon {
 
-public:
-    const ExitGames::Common::JString gameName = L"Basics";
-    const int MAX_SENDCOUNT = 100;
+    enum State
+    {
+        INITIALIZED = 0,
+        CONNECTING,
+        CONNECTED,
+        JOINING,
+        JOINED,
+        SENT_DATA,
+        RECEIVED_DATA,
+        LEAVING,
+        LEFT,
+        DISCONNECTING,
+        DISCONNECTED
+    };
 
-    PhotonClient(const ExitGames::Common::JString& appID, const ExitGames::Common::JString& appVersion);
-    void service(void);
+    enum EventType {
+        DATA = 0,
+        INFO = 1
+    };
 
-    bool isConnected();
+    class PhotonSignalingProvider : public ExitGames::LoadBalancing::Listener, public humblenet::HumblenetSignalProvider {
 
-    void sendData(void);
+    public:
+        const ExitGames::Common::JString gameName = L"Basics";
+        const int MAX_SENDCOUNT = 100;
 
-private:
-    Logger logger;
+        PhotonSignalingProvider(
+            const ExitGames::Common::JString& appID,
+            const ExitGames::Common::JString& appVersion);
 
-    ExitGames::LoadBalancing::Client mClient;
-    State mState;
-    State mLastState;
-    int64 mSendCount;
-    int64 mReceiveCount;
+        // LoadBalancing::Listener
 
-    // receive and print out debug out here
-    virtual void debugReturn(int debugLevel, const ExitGames::Common::JString& string);
+        void service(void);
+        void setDebugLevel(int debugLevel);
+        int getId(void);
 
-    // implement your error-handling here
-    virtual void connectionErrorReturn(int errorCode);
-    virtual void clientErrorReturn(int errorCode);
-    virtual void warningReturn(int warningCode);
-    virtual void serverErrorReturn(int errorCode);
+        // ISignalingProvider
 
-    // events, triggered by certain operations of all players in the same room
-    virtual void joinRoomEventAction(int playerNr, const ExitGames::Common::JVector<int>& playernrs, const ExitGames::LoadBalancing::Player& player);
-    virtual void leaveRoomEventAction(int playerNr, bool isInactive);
-    virtual void customEventAction(int playerNr, nByte eventCode, const ExitGames::Common::Object& eventContent);
+        // State
+        ha_bool is_connected();
 
-    // callbacks for operations on PhotonLoadBalancing server
-    virtual void connectReturn(int errorCode, const ExitGames::Common::JString& errorString, const ExitGames::Common::JString& cluster);
-    virtual void disconnectReturn(void);
-    virtual void createRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
-    virtual void joinOrCreateRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
-    virtual void joinRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
-    virtual void joinRandomRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
-    virtual void leaveRoomReturn(int errorCode, const ExitGames::Common::JString& errorString);
-    virtual void joinLobbyReturn(void);
-    virtual void leaveLobbyReturn(void);
+        // Commands
+        ha_bool connect(void* info);
+        void disconnect();
 
-    // Utils
+        int send(const uint8_t* buff, size_t length);
+        int receive(const uint8_t* buff, size_t length, void* info);
 
-    ExitGames::Common::JString getStateString(void);
-};
+    private:
+        int debugLevel;
+        Logger logger;
 
-class PhotonSignalingProvider : public ISignalingProvider {
+        ExitGames::LoadBalancing::Client mClient;
+        State mState;
+        int64 mSendCount;
+        int64 mReceiveCount;
 
-private:
-    PhotonClient mClient;
+        std::thread internalLoop;
+        volatile bool running;
 
-public:
-    PhotonSignalingProvider(const ExitGames::Common::JString& appID, const ExitGames::Common::JString& appVersion);
+        void startLoop(void);
+        void stopLoop(void);
 
-    void service();
+        // receive and print out debug out here
+        virtual void debugReturn(int debugLevel, const ExitGames::Common::JString& string);
 
-    // State
-    ha_bool is_connected();
+        // implement your error-handling here
+        virtual void connectionErrorReturn(int errorCode);
+        virtual void clientErrorReturn(int errorCode);
+        virtual void warningReturn(int warningCode);
+        virtual void serverErrorReturn(int errorCode);
 
-    // Commands
-    ha_bool connect(void* info);
-    void disconnect();
+        // events, triggered by certain operations of all players in the same room
+        virtual void joinRoomEventAction(int playerNr, const ExitGames::Common::JVector<int>& playernrs, const ExitGames::LoadBalancing::Player& player);
+        virtual void leaveRoomEventAction(int playerNr, bool isInactive);
+        virtual void customEventAction(int playerNr, nByte eventCode, const ExitGames::Common::Object& eventContent);
 
-    int send(const uint8_t* buff, size_t length);
-    int receive(const uint8_t* buff, size_t length, void* info);
+        // callbacks for operations on PhotonLoadBalancing server
+        virtual void connectReturn(int errorCode, const ExitGames::Common::JString& errorString, const ExitGames::Common::JString& cluster);
+        virtual void disconnectReturn(void);
+        virtual void createRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
+        virtual void joinOrCreateRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
+        virtual void joinRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
+        virtual void joinRandomRoomReturn(int localPlayerNr, const ExitGames::Common::Hashtable& gameProperties, const ExitGames::Common::Hashtable& playerProperties, int errorCode, const ExitGames::Common::JString& errorString);
+        virtual void leaveRoomReturn(int errorCode, const ExitGames::Common::JString& errorString);
+        virtual void joinLobbyReturn(void);
+        virtual void leaveLobbyReturn(void);
 
-};
+        // Utils
+
+        ExitGames::Common::JString getStateString(void);
+    };
+
+}

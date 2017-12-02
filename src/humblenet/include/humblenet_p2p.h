@@ -17,7 +17,7 @@ typedef enum SendMode {
 } SendMode;
 
 
-HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(ISignalingProvider* provider);
+HUMBLENET_API ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(std::shared_ptr<ISignalingProvider> externalProvider);
 
 /*
 * Is the peer-to-peer network supported on this platform.

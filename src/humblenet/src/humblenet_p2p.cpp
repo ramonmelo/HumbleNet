@@ -13,9 +13,9 @@ std::map<PeerId, Connection*> p2pconnections;
 
 static bool initialized = false;
 
-ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(std::unique_ptr<ISignalingProvider> externalProvider) {
+ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(std::shared_ptr<ISignalingProvider> externalProvider) {
 
-	humbleNetState.p2pConnExternal = std::move(externalProvider);
+	humbleNetState.p2pConnExternal = externalProvider;
 
 	return true;
 }

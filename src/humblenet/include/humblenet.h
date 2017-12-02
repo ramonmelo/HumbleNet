@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <memory>
 
 #ifdef HUMBLENET_STATIC
 	#define HUMBLENET_DLL_EXPORT
@@ -67,6 +68,16 @@ extern "C" {
 
 typedef uint8_t ha_bool;
 typedef uint32_t PeerId;
+
+/*
+ * Shutdown the entire humblenet library
+ */
+HUMBLENET_API void HUMBLENET_CALL humblenet_guard();
+
+/*
+ * Shutdown the entire humblenet library
+ */
+HUMBLENET_API void HUMBLENET_CALL humblenet_unguard();
 
 /*
  * Get the version of the humblenet library we are linked to

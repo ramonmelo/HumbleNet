@@ -14,8 +14,9 @@
 #include <algorithm>
 #include <iterator>
 
-#include "test_peer_generated.h"
+#include <memory>
 
+#include "test_peer_generated.h"
 #include "PhotonClient.h"
 
 static PeerId myPeer = 0;
@@ -267,15 +268,18 @@ void main_loop()
 
 int main(int argc, char* argv[])
 {
-	static const ExitGames::Common::JString appID = "6a48c4f8-e53a-457f-a05a-4d3b04aa40f6";
+	static const ExitGames::Common::JString appID = "22ad16de-6e9b-4ac8-9d9d-fda9f5c23ef6";
     static const ExitGames::Common::JString appVersion = "1.0";
 
-    PhotonSignalingProvider networkLogic(appID, appVersion);
+    std::shared_ptr<Photon::PhotonSignalingProvider> networkLogic = std::shared_ptr<Photon::PhotonSignalingProvider>(new Photon::PhotonSignalingProvider(appID, appVersion));
 
 	std::string peerServer = HUMBLENET_SERVER_URL;
 	if (argc == 2) {
 		peerServer = argv[1];
 	}
+
+	humblenet_p2p_register_signaling(networkLogic);
+
 	humblenet_p2p_init(peerServer.c_str(), "client_token", "client_secret", NULL);
 
 #ifdef EMSCRIPTEN
@@ -335,7 +339,7 @@ int main(int argc, char* argv[])
 	while (run.load()) {
 		main_loop();
 
-		networkLogic.service();
+		networkLogic->service();
 	}
 
 	run.store(false);

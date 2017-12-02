@@ -66,6 +66,8 @@ namespace humblenet {
 
         auto msgType = msg->message_type();
 
+        LOG("p2pSignalProcess! %d", (int) msgType);
+
         switch (msgType) {
             case HumblePeer::MessageType::P2POffer:
             {
@@ -90,7 +92,8 @@ namespace humblenet {
                 connection->status = HUMBLENET_CONNECTION_CONNECTING;
                 connection->otherPeer = peer;
                 {
-                    HUMBLENET_UNGUARD();
+                    LOG("\nHERE\n");
+                    HUMBLENET_UNGUARD(); // have to call GUARD !
                     connection->socket = internal_create_webrtc(humbleNetState.context);
                 }
                 internal_set_data( connection->socket, connection );
