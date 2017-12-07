@@ -1,0 +1,5 @@
+/Users/ramonmelo/Documents/ExitGames/HumbleNetExtensions/HumbleNet/tests/c-sharp/TestPeer/bin/Debug/TestPeer.exe
+/Users/ramonmelo/Documents/ExitGames/HumbleNetExtensions/HumbleNet/tests/c-sharp/TestPeer/bin/Debug/TestPeer.pdb
+/Users/ramonmelo/Documents/ExitGames/HumbleNetExtensions/HumbleNet/tests/c-sharp/TestPeer/obj/x86/Debug/TestPeer.csproj.CoreCompileInputs.cache
+/Users/ramonmelo/Documents/ExitGames/HumbleNetExtensions/HumbleNet/tests/c-sharp/TestPeer/obj/x86/Debug/TestPeer.exe
+/Users/ramonmelo/Documents/ExitGames/HumbleNetExtensions/HumbleNet/tests/c-sharp/TestPeer/obj/x86/Debug/TestPeer.pdb

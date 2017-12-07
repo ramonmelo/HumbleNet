@@ -185,19 +185,31 @@ void main_loop()
 	}
 }
 
+void service()
+{
+	humblenet_p2p_wait(100);
+}
+
 int main(int argc, char *argv[])
 {
+	std::cout << "Starting the Hello World Code!" << std::endl;
+
 	if (argc > 1) {
 		startPeerStatus = PeerStatus::WAITING;
 		startPeerId = std::stol(argv[1]);
 	}
+
 	// Initialize the core library
 	humblenet_init();
 
 	// Initialize the P2P subsystem connecting to the named peer server
 	// Client token and secret are defined in the peer server configuration
 	// the 4th argument is for user authentication (future feature)
-	humblenet_p2p_init(HUMBLENET_SERVER_URL, client_token, client_secret, NULL);
+	// humblenet_p2p_init(HUMBLENET_SERVER_URL, client_token, client_secret, NULL);
+	humblenet_p2p_init("", "", "", NULL);
+
+	// std::cout << "Connecting with " << startPeerId << std::endl;
+	// send_message(startPeerId, MessageType::HELLO, "", 0);
 
 #ifdef EMSCRIPTEN
 	EM_ASM(
@@ -250,10 +262,12 @@ int main(int argc, char *argv[])
 	);
 	emscripten_set_main_loop( main_loop, 60, 1 );
 #else
+
 	std::atomic<bool> run(true);
 
 	while (run.load()) {
 		main_loop();
+		// service();
 	}
 	humblenet_shutdown();
 #endif
