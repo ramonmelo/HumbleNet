@@ -1,11 +1,16 @@
 #pragma once
 
+#ifndef EG_LOGGING
+#define EG_LOGGING true
+#endif
+
+#include <iostream>
 #include <stdio.h>
 #include <thread>
 #include <chrono>
 
-#include "Logger.h"
 #include "LoadBalancing-cpp/inc/Client.h"
+#include "Common-cpp/inc/Logger.h"
 #include "Common-cpp/inc/Enums/DebugLevel.h"
 
 #include "humblenet_p2p.h"
@@ -13,6 +18,7 @@
 #include "humblenet_p2p_internal_signaling_provider.h"
 
 using namespace ExitGames::Common;
+using namespace ExitGames::LoadBalancing;
 
 namespace Photon {
 
@@ -46,18 +52,17 @@ namespace Photon {
             const ExitGames::Common::JString& appID,
             const ExitGames::Common::JString& appVersion);
 
-        // LoadBalancing::Listener
+        // LoadBalancing::Client
 
         void service(void);
-        void setDebugLevel(int debugLevel);
         int getId(void);
 
         // ISignalingProvider
 
-        // State
+        // :: State
         ha_bool is_connected();
 
-        // Commands
+        // :: Commands
         ha_bool connect(void* info);
         void disconnect();
 
@@ -65,10 +70,9 @@ namespace Photon {
         int receive(const uint8_t* buff, size_t length, void* info);
 
     private:
-        int debugLevel;
-        Logger logger;
+        int mCurrentDebugLevel;
 
-        ExitGames::LoadBalancing::Client mClient;
+        Client mClient;
         State mState;
         int64 mSendCount;
         int64 mReceiveCount;

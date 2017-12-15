@@ -16,6 +16,7 @@ static bool initialized = false;
 ha_bool HUMBLENET_CALL humblenet_p2p_register_signaling(std::shared_ptr<ISignalingProvider> externalProvider) {
 
 	humbleNetState.p2pConnExternal = externalProvider;
+	humbleNetState.usingExternalSignaling = true;
 
 	return true;
 }

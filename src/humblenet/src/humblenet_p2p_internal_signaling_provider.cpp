@@ -66,8 +66,6 @@ namespace humblenet {
 
         auto msgType = msg->message_type();
 
-        LOG("p2pSignalProcess! %d", (int) msgType);
-
         switch (msgType) {
             case HumblePeer::MessageType::P2POffer:
             {
@@ -92,8 +90,8 @@ namespace humblenet {
                 connection->status = HUMBLENET_CONNECTION_CONNECTING;
                 connection->otherPeer = peer;
                 {
-                    LOG("\nHERE\n");
-                    HUMBLENET_UNGUARD(); // have to call GUARD !
+                    if (!humbleNetState.usingExternalSignaling) { HUMBLENET_UNGUARD(); }
+
                     connection->socket = internal_create_webrtc(humbleNetState.context);
                 }
                 internal_set_data( connection->socket, connection );
@@ -105,7 +103,8 @@ namespace humblenet {
                 LOG("P2PConnect SDP got %u's offer = \"%s\"\n", peer, offer->c_str());
                 int ret;
                 {
-                    HUMBLENET_UNGUARD();
+                    if (!humbleNetState.usingExternalSignaling) { HUMBLENET_UNGUARD(); }
+
                     ret = internal_set_offer( connection->socket, offer->c_str() );
                 }
                 if( ! ret )
@@ -141,7 +140,8 @@ namespace humblenet {
                 LOG("P2PResponse SDP got %u's response offer = \"%s\"\n", peer, offer->c_str());
                 int ret;
                 {
-                    HUMBLENET_UNGUARD();
+                    if (!humbleNetState.usingExternalSignaling) { HUMBLENET_UNGUARD(); }
+
                     ret = internal_set_answer( conn->socket, offer->c_str() );
                 }
                 if( !ret ) {
@@ -214,7 +214,7 @@ namespace humblenet {
                     LOG("Got ice candidate from peer: %d, %s\n", it->second->otherPeer, offer->c_str() );
 
                     {
-                        HUMBLENET_UNGUARD();
+                        if (!humbleNetState.usingExternalSignaling) { HUMBLENET_UNGUARD(); }
 
                         internal_add_ice_candidate( it->second->socket, offer->c_str() );
                     }

@@ -88,6 +88,7 @@ typedef struct HumbleNetState {
 
 	std::shared_ptr<ISignalingProvider> p2pConn;
 	std::shared_ptr<ISignalingProvider> p2pConnExternal;
+	ha_bool usingExternalSignaling;
 
 	std::string signalingServerAddr;
 	std::string gameToken;

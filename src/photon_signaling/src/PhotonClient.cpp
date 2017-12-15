@@ -2,7 +2,7 @@
 * @Author: ramonmelo
 * @Date:   2017-11-09
 * @Last Modified by:   Ramon Melo
-* @Last Modified time: 2017-12-01
+* @Last Modified time: 2017-12-15
 */
 
 #include "PhotonClient.h"
@@ -14,7 +14,7 @@ using namespace Photon;
 PhotonSignalingProvider::PhotonSignalingProvider(const ExitGames::Common::JString& appID, const ExitGames::Common::JString& appVersion) :
     mClient(*this, appID, appVersion),
     mState(INITIALIZED),
-    debugLevel(DebugLevel::ALL),
+    mCurrentDebugLevel(DebugLevel::INFO),
     running(false)
 {
     mSendCount = 0;
@@ -25,78 +25,6 @@ int PhotonSignalingProvider::getId(void) {
     return mClient.getLocalPlayer().getNumber();
 }
 
-ha_bool PhotonSignalingProvider::is_connected() {
-    return mState == State::JOINED;
-}
-
-// Commands
-ha_bool PhotonSignalingProvider::connect(void* info) {
-    while( !is_connected() ) {
-        service();
-    }
-
-    humblenet_p2p_set_my_peer_id( getId() );
-
-    // startLoop();
-
-    return is_connected();
-}
-
-void PhotonSignalingProvider::disconnect() {
-    logger.log(ExitGames::Common::JString(L"call disconnect"));
-
-    // stopLoop();
-}
-
-int PhotonSignalingProvider::send(const uint8_t* buff, size_t length)
-{
-    if (buff != NULL) {
-
-        debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"sending data: ") + length);
-
-        ExitGames::Common::Hashtable event;
-
-        // put data
-        // event.put(static_cast<nByte>(0), ++mSendCount);
-
-        event.put(static_cast<nByte>(0), buff, length);
-        event.put(static_cast<nByte>(1), (int) length);
-
-        // send to ourselves only
-        int myPlayerNumber = mClient.getLocalPlayer().getNumber();
-
-        ExitGames::LoadBalancing::RaiseEventOptions options = ExitGames::LoadBalancing::RaiseEventOptions();
-
-        options.setTargetPlayers( &myPlayerNumber );
-        options.setNumTargetPlayers(1);
-
-        mClient.opRaiseEvent(
-            true,
-            event,
-            EventType::DATA,
-            options);
-
-        return length;
-
-    } else {
-        return 0;
-    }
-
-    // if(mSendCount >= MAX_SENDCOUNT) {
-    //     mState = State::SENT_DATA;
-    // }
-}
-
-int PhotonSignalingProvider::receive(const uint8_t* buff, size_t length, void* info) {
-
-    logger.log(ExitGames::Common::JString(L"to receive data"));
-
-    return 0;
-}
-
-void PhotonSignalingProvider::setDebugLevel(int debugLevel) {
-    this->debugLevel = debugLevel;
-}
 
 void PhotonSignalingProvider::service(void) {
 
@@ -149,32 +77,106 @@ void PhotonSignalingProvider::service(void) {
     mClient.service();
 }
 
-void PhotonSignalingProvider::startLoop(void) {
+/**
+ * ISignalingProvider
+ */
 
-    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"startLoop"));
-
-    running = true;
-
-    internalLoop = std::thread( [this] {
-        while(this->running) {
-            this->service();
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    });
+ha_bool PhotonSignalingProvider::is_connected() {
+    return mState == State::JOINED;
 }
 
-void PhotonSignalingProvider::stopLoop(void) {
-    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"stopLoop"));
+// Commands
+ha_bool PhotonSignalingProvider::connect(void* info) {
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"call connect"));
 
-    running = false;
-    internalLoop.join();
+    while( !is_connected() ) {
+        service();
+    }
+
+    humblenet_p2p_set_my_peer_id( getId() );
+
+    // startLoop();
+
+    return is_connected();
+}
+
+void PhotonSignalingProvider::disconnect() {
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"call disconnect"));
+
+    // stopLoop();
+}
+
+int PhotonSignalingProvider::send(const uint8_t* buff, size_t length)
+{
+    if (buff != NULL) {
+
+        ExitGames::Common::Hashtable event;
+
+        // put data
+        event.put(static_cast<nByte>(0), buff, length);
+        event.put(static_cast<nByte>(1), (int) length);
+
+        // send to ourselves only
+        int myPlayerNumber = getId();
+
+        nByte totalPlayers = mClient.getCurrentlyJoinedRoom().getPlayerCount();
+
+        debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"My id: ") + myPlayerNumber);
+        debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Total players in room: ") + totalPlayers);
+
+        int *targets = new int[totalPlayers - 1];
+
+        for (int i = 0; i < totalPlayers; i++)
+        {
+            int currentPlayer = mClient.getCurrentlyJoinedRoom().getPlayers()[i]->getNumber();
+
+            if (myPlayerNumber == currentPlayer) {
+                continue;
+            }
+
+            targets[i] = currentPlayer;
+            debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"\tsending msg to: ") + currentPlayer);
+        }
+
+        ExitGames::LoadBalancing::RaiseEventOptions options = ExitGames::LoadBalancing::RaiseEventOptions();
+
+        options.setTargetPlayers( targets );
+        options.setNumTargetPlayers( totalPlayers - 1 );
+
+        mClient.opRaiseEvent(
+            true,
+            event,
+            EventType::DATA,
+            options);
+
+        delete[] targets;
+
+        return length;
+
+    } else {
+        return 0;
+    }
+
+    // if(mSendCount >= MAX_SENDCOUNT) {
+    //     mState = State::SENT_DATA;
+    // }
+}
+
+/**
+ * LoadBalancing::Client
+ */
+
+int PhotonSignalingProvider::receive(const uint8_t* buff, size_t length, void* info) {
+    debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"to receive data"));
+
+    return 0;
 }
 
 // receive and print out debug out here
 void PhotonSignalingProvider::debugReturn(int debugLevel, const ExitGames::Common::JString& string) {
-    if ( debugLevel <= this->debugLevel ) {
-        logger.log(string);
+
+    if ( debugLevel <= mCurrentDebugLevel ) {
+        std::wcout << "\nLOG: " << string.cstr() << std::endl;
     }
 }
 
@@ -209,17 +211,21 @@ void PhotonSignalingProvider::leaveRoomEventAction(int playerNr, bool isInactive
 
 void PhotonSignalingProvider::customEventAction(int playerNr, nByte eventCode, const ExitGames::Common::Object& eventContentObj) {
 
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received data from ") + playerNr);
+
+    if (playerNr == getId()) {
+        return;
+    }
+
     ExitGames::Common::Hashtable event = ExitGames::Common::ValueObject<ExitGames::Common::Hashtable>(eventContentObj).getDataCopy();
 
     switch(eventCode)
     {
     case EventType::DATA:
 
-        debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received data from ") + playerNr);
-
         if(event.contains((nByte)0) && event.contains((nByte)1)) {
 
-            humblenet_guard();
+            // humblenet_guard();
 
             uint8_t* buff = ExitGames::Common::ValueObject<uint8_t*>(event.getValue((nByte)0)).getDataCopy();
             int length = ExitGames::Common::ValueObject<int>(event.getValue((nByte)1)).getDataCopy();
@@ -355,6 +361,28 @@ void PhotonSignalingProvider::leaveLobbyReturn(void) {
 }
 
 // Utils
+
+void PhotonSignalingProvider::startLoop(void) {
+
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"startLoop"));
+
+    running = true;
+
+    internalLoop = std::thread( [this] {
+        while(this->running) {
+            this->service();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    });
+}
+
+void PhotonSignalingProvider::stopLoop(void) {
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"stopLoop"));
+
+    running = false;
+    internalLoop.join();
+}
 
 ExitGames::Common::JString PhotonSignalingProvider::getStateString(void)
 {

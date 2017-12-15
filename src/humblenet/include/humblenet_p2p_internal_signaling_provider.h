@@ -15,10 +15,6 @@ namespace humblenet {
         public:
             HumblenetSignalProvider() : wsi(NULL) {}
 
-            void test() {
-
-            }
-
             // Status
             virtual ha_bool is_connected();
 
