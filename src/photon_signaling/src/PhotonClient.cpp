@@ -120,11 +120,13 @@ int PhotonSignalingProvider::send(const uint8_t* buff, size_t length)
         int myPlayerNumber = getId();
 
         nByte totalPlayers = mClient.getCurrentlyJoinedRoom().getPlayerCount();
+        nByte totalTargets = totalPlayers - 1;
 
         debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"My id: ") + myPlayerNumber);
         debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"Total players in room: ") + totalPlayers);
 
-        int *targets = new int[totalPlayers - 1];
+        int *targets = new int[totalTargets];
+        nByte currentIndex = 0;
 
         for (int i = 0; i < totalPlayers; i++)
         {
@@ -134,14 +136,16 @@ int PhotonSignalingProvider::send(const uint8_t* buff, size_t length)
                 continue;
             }
 
-            targets[i] = currentPlayer;
+            targets[currentIndex] = currentPlayer;
+            currentIndex += 1;
+
             debugReturn(DebugLevel::INFO, ExitGames::Common::JString(L"\tsending msg to: ") + currentPlayer);
         }
 
         ExitGames::LoadBalancing::RaiseEventOptions options = ExitGames::LoadBalancing::RaiseEventOptions();
 
         options.setTargetPlayers( targets );
-        options.setNumTargetPlayers( totalPlayers - 1 );
+        options.setNumTargetPlayers( totalTargets );
 
         mClient.opRaiseEvent(
             true,
@@ -156,10 +160,6 @@ int PhotonSignalingProvider::send(const uint8_t* buff, size_t length)
     } else {
         return 0;
     }
-
-    // if(mSendCount >= MAX_SENDCOUNT) {
-    //     mState = State::SENT_DATA;
-    // }
 }
 
 /**
@@ -211,11 +211,11 @@ void PhotonSignalingProvider::leaveRoomEventAction(int playerNr, bool isInactive
 
 void PhotonSignalingProvider::customEventAction(int playerNr, nByte eventCode, const ExitGames::Common::Object& eventContentObj) {
 
-    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received data from ") + playerNr);
-
     if (playerNr == getId()) {
         return;
     }
+
+    debugReturn(DebugLevel::WARNINGS, ExitGames::Common::JString(L"received data from ") + playerNr);
 
     ExitGames::Common::Hashtable event = ExitGames::Common::ValueObject<ExitGames::Common::Hashtable>(eventContentObj).getDataCopy();
 
@@ -224,8 +224,6 @@ void PhotonSignalingProvider::customEventAction(int playerNr, nByte eventCode, c
     case EventType::DATA:
 
         if(event.contains((nByte)0) && event.contains((nByte)1)) {
-
-            // humblenet_guard();
 
             uint8_t* buff = ExitGames::Common::ValueObject<uint8_t*>(event.getValue((nByte)0)).getDataCopy();
             int length = ExitGames::Common::ValueObject<int>(event.getValue((nByte)1)).getDataCopy();
@@ -238,15 +236,6 @@ void PhotonSignalingProvider::customEventAction(int playerNr, nByte eventCode, c
 
             humblenet::parseMessage(this->recvBuf, p2pSignalProcess, NULL);
         }
-
-        // if(event.getValue((nByte)0))
-        //     mReceiveCount = ((ExitGames::Common::ValueObject<int64>*)(event.getValue((nByte)0)))->getDataCopy();
-        // if(mState == State::SENT_DATA && mReceiveCount >= mSendCount)
-        // {
-        //     mState = State::RECEIVED_DATA;
-        //     mSendCount = 0;
-        //     mReceiveCount = 0;
-        // }
 
         break;
     case EventType::INFO:

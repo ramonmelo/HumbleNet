@@ -114,6 +114,8 @@ void sendChat(const std::string& message)
 
 bool sendHello(PeerId peer, bool isResponse = false)
 {
+	if (peer == myPeer) { return false; }
+
 	std::cout << "Try hello " << peer << std::endl;
 
 	flatbuffers::FlatBufferBuilder builder;
@@ -268,7 +270,7 @@ void main_loop()
 
 int main(int argc, char* argv[])
 {
-	static const ExitGames::Common::JString appID = "22ad16de-6e9b-4ac8-9d9d-fda9f5c23ef6";
+	static const ExitGames::Common::JString appID = "55923955-29c1-49d8-9060-9b2647be4364";
     static const ExitGames::Common::JString appVersion = "1.0";
 
     std::shared_ptr<Photon::PhotonSignalingProvider> networkLogic = std::shared_ptr<Photon::PhotonSignalingProvider>(new Photon::PhotonSignalingProvider(appID, appVersion));
